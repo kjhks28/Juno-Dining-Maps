@@ -1,2 +1,2 @@
 [functions.naver-place-search]
-verify_jwt = true
+verify_jwt = false
