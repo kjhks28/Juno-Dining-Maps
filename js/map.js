@@ -4,7 +4,7 @@ const INITIAL_CENTER = { lat:37.557,lng:126.99 };
 const TILE_TIMEOUT_MS = 12000;
 
 function showMapError(message){ const container=document.querySelector("#map"); container.innerHTML=`<div class="map-error"><strong>지도를 불러오지 못했어요</strong><span>${message}</span><small>네이버 클라우드의 Web 서비스 URL과 Client ID를 확인해 주세요.</small></div>`; }
-function createUnavailableController(){ return {renderMarkers(){},focus(){},locate(){return Promise.reject(new Error("지도를 사용할 수 없습니다."));}}; }
+function createUnavailableController(){ return {renderMarkers(){},focus(){},focusArea(){},locate(){return Promise.reject(new Error("지도를 사용할 수 없습니다."));}}; }
 function waitForTiles(maps,map){ return new Promise((resolve,reject)=>{ let settled=false; const timeout=setTimeout(()=>{if(!settled){settled=true;reject(new Error("네이버 지도 타일을 불러오지 못했습니다. Dynamic Map 설정과 Web 서비스 URL을 확인해 주세요."));}},TILE_TIMEOUT_MS); maps.Event.once(map,"tilesloaded",()=>{if(!settled){settled=true;clearTimeout(timeout);resolve();}}); }); }
 
 export async function createMapController(){
@@ -27,7 +27,15 @@ export async function createMapController(){
       });
     }
     function focus(id,item){ const position=new maps.LatLng(item.lat,item.lng);map.setCenter(position);map.setZoom(16);const record=records.get(id);if(record) openInfoWindow(record); }
+    function focusArea(items){
+      const validItems=items.filter(item=>Number.isFinite(Number(item.lat))&&Number.isFinite(Number(item.lng)));
+      if(validItems.length===0) return;
+      if(validItems.length===1){map.setCenter(new maps.LatLng(validItems[0].lat,validItems[0].lng));map.setZoom(14);return;}
+      const bounds=new maps.LatLngBounds();
+      validItems.forEach(item=>bounds.extend(new maps.LatLng(item.lat,item.lng)));
+      map.fitBounds(bounds,60);
+    }
     function locate(){ return new Promise((resolve,reject)=>{ if(!navigator.geolocation){reject(new Error("현재 위치 기능을 지원하지 않는 브라우저입니다."));return;} navigator.geolocation.getCurrentPosition(position=>{map.setCenter(new maps.LatLng(position.coords.latitude,position.coords.longitude));map.setZoom(15);resolve();},()=>reject(new Error("현재 위치 권한을 확인해 주세요.")),{enableHighAccuracy:true,timeout:8000}); }); }
-    return {renderMarkers,focus,locate};
+    return {renderMarkers,focus,focusArea,locate};
   } catch(error){ console.error("네이버 지도를 초기화하지 못했습니다.",error);showMapError(error instanceof Error?error.message:"지도 초기화 오류");return createUnavailableController(); }
 }
