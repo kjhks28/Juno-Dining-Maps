@@ -1,11 +1,22 @@
-import { KOREAN_PROVINCES } from "./constants.js";
 import { hasNaverClientId, loadNaverSdk } from "./naver-sdk.js";
+import { getProvince } from "./regions.js";
 
-function findProvince(address,region){ const text=`${address} ${region}`; return Object.entries(KOREAN_PROVINCES).find(([,cities])=>cities.some(city=>text.includes(city)))?.[0]??""; }
-function enrichAddress(address,region){ const province=findProvince(address,region); return [province,address].filter(Boolean).join(", "); }
+function enrichAddress(address,region){ const province=getProvince({address,region}); return [province==="기타 지역"?"":province,address].filter(Boolean).join(", "); }
 async function requestNaverGeocode(query){
+  const results=await searchNaverAddresses(query);
+  return results[0]??null;
+}
+
+export async function searchNaverAddresses(query){
+  const normalizedQuery=String(query??"").trim();
+  if(normalizedQuery.length<2) throw new Error("검색할 주소를 두 글자 이상 입력해 주세요.");
   await loadNaverSdk();
-  return new Promise((resolve,reject)=>window.naver.maps.Service.geocode({query},(status,response)=>{ if(status!==window.naver.maps.Service.Status.OK){reject(new Error("네이버 주소 검색에 실패했습니다."));return;} const result=response.v2?.addresses?.[0]; resolve(result?{lat:Number(result.y),lng:Number(result.x),coordinateSource:"naver",roadAddress:result.roadAddress||query}:null); }));
+  return new Promise((resolve,reject)=>window.naver.maps.Service.geocode({query:normalizedQuery},(status,response)=>{
+    if(status!==window.naver.maps.Service.Status.OK){reject(new Error("네이버 주소 검색에 실패했습니다."));return;}
+    const addresses=Array.isArray(response.v2?.addresses)?response.v2.addresses:[];
+    const results=addresses.slice(0,5).map(result=>({lat:Number(result.y),lng:Number(result.x),coordinateSource:"naver",roadAddress:result.roadAddress||result.jibunAddress||normalizedQuery,jibunAddress:result.jibunAddress||""})).filter(result=>Number.isFinite(result.lat)&&Number.isFinite(result.lng));
+    resolve(results);
+  }));
 }
 async function requestOsmGeocode(query){
   const controller=new AbortController(); const timeout=setTimeout(()=>controller.abort(),8000);

@@ -1,5 +1,5 @@
 import { CATEGORY_ICONS, REVISIT_LABELS, TAG_OPTIONS } from "./js/constants.js";
-import { geocodeAddress } from "./js/geocoding.js";
+import { searchNaverAddresses } from "./js/geocoding.js";
 import { preparePhotos } from "./js/images.js";
 import { createMapController } from "./js/map.js";
 import { getDistrict, getProvince } from "./js/regions.js";
@@ -13,13 +13,14 @@ let activeTag = "전체";
 let activeStatus = "all";
 let activeId = null;
 let editingId = null;
+let selectedAddressResult = null;
 const mapController = await createMapController();
 
 const elements = {
   list:document.querySelector("#restaurantList"), empty:document.querySelector("#emptyState"),
   provinces:document.querySelector("#provinceFilters"), regions:document.querySelector("#regionFilters"), categories:document.querySelector("#categoryFilters"), tags:document.querySelector("#tagFilters"), statusFilters:document.querySelector("#statusFilters"),
   search:document.querySelector("#searchInput"), sort:document.querySelector("#sortSelect"),
-  dialog:document.querySelector("#restaurantDialog"), form:document.querySelector("#restaurantForm"),
+  dialog:document.querySelector("#restaurantDialog"), form:document.querySelector("#restaurantForm"), addressResults:document.querySelector("#addressResults"), addressStatus:document.querySelector("#addressSearchStatus"),
   status:document.querySelector("#formStatus")
 };
 
@@ -68,16 +69,27 @@ function recordVisit(id){
 }
 function setFormValue(name,value){ const field=elements.form.elements.namedItem(name); if(field) field.value=String(value); }
 function setTagValues(tags=[]){ elements.form.querySelectorAll('input[name="tags"]').forEach(input=>{input.checked=tags.includes(input.value);}); }
-function openCreateForm(){ editingId=null; elements.form.reset(); setFormValue("visitCount",1); elements.status.textContent=""; document.querySelector("#dialogEyebrow").textContent="NEW PLACE"; document.querySelector("#dialogTitle").textContent="맛집 기록하기"; document.querySelector("#submitFormButton").textContent="지도에 기록하기"; elements.dialog.showModal(); }
+function resetAddressSearch(){ selectedAddressResult=null;elements.addressStatus.textContent="";elements.addressResults.replaceChildren();elements.addressResults.hidden=true; }
+function openCreateForm(){ editingId=null; elements.form.reset(); resetAddressSearch(); setFormValue("visitCount",1); elements.status.textContent=""; document.querySelector("#dialogEyebrow").textContent="NEW PLACE"; document.querySelector("#dialogTitle").textContent="맛집 기록하기"; document.querySelector("#submitFormButton").textContent="지도에 기록하기"; elements.dialog.showModal(); }
 function openEditForm(id){
   const item=restaurants.find(place=>place.id===id); if(!item) return;
-  editingId=id; elements.status.textContent=""; ["status","visitDate","name","address","region","category","subcategory","rating","visitCount","revisit","menuReviews","comment","description"].forEach(name=>setFormValue(name,item[name]??"")); setTagValues(item.tags);
+  editingId=id; resetAddressSearch(); elements.status.textContent=""; ["status","visitDate","name","address","region","category","subcategory","rating","visitCount","revisit","menuReviews","comment","description"].forEach(name=>setFormValue(name,item[name]??"")); setTagValues(item.tags);
   document.querySelector("#dialogEyebrow").textContent="EDIT PLACE"; document.querySelector("#dialogTitle").textContent="맛집 수정하기"; document.querySelector("#submitFormButton").textContent="수정 내용 저장"; elements.dialog.showModal();
 }
 function closeForm(){ editingId=null; elements.form.reset(); elements.status.textContent=""; elements.dialog.close(); }
+function renderAddressResults(results){
+  elements.addressResults.replaceChildren(...results.map(result=>{const button=document.createElement("button");button.type="button";button.className="address-result";const road=document.createElement("strong");road.textContent=result.roadAddress;const jibun=document.createElement("span");jibun.textContent=result.jibunAddress?`지번 ${result.jibunAddress}`:"지번 주소 없음";button.append(road,jibun);button.addEventListener("click",()=>{selectedAddressResult={...result,selectedAddress:result.roadAddress};setFormValue("address",result.roadAddress);elements.addressStatus.textContent="네이버 지도 위치를 선택했습니다.";elements.addressResults.hidden=true;mapController.moveTo(result.lat,result.lng);});return button;}));
+  elements.addressResults.hidden=results.length===0;
+}
+async function searchAddress(){
+  const button=document.querySelector("#searchAddressButton"); const address=String(elements.form.elements.namedItem("address").value).trim(); button.disabled=true;elements.addressStatus.textContent="네이버 지도에서 검색하는 중…";elements.addressResults.hidden=true;
+  try { const results=await searchNaverAddresses(address); if(results.length===0) throw new Error("검색 결과가 없습니다."); renderAddressResults(results);elements.addressStatus.textContent=`검색 결과 ${results.length}개 · 사용할 주소를 선택해 주세요.`; }
+  catch(error){ console.error("네이버 주소 검색에 실패했습니다.",error);resetAddressSearch();elements.addressStatus.textContent=error instanceof Error?error.message:"주소를 검색하지 못했어요."; }
+  finally { button.disabled=false; }
+}
 async function handleSubmit(event){
   event.preventDefault(); const submit=elements.form.querySelector("[type=submit]"); const originalText=submit.textContent; submit.disabled=true; submit.textContent="저장하는 중…"; elements.status.textContent="";
-  try { const data=new FormData(elements.form); const status=String(data.get("status")); const rawRating=String(data.get("rating")).trim(); const rating=rawRating===""?null:Number(rawRating); if(status==="visited"&&!Number.isFinite(rating)) throw new Error("다녀온 맛집은 평점을 입력해 주세요."); if(rating!==null&&(!Number.isFinite(rating)||rating<0||rating>10)) throw new Error("평점은 0점부터 10점 사이로 입력해 주세요."); const previous=editingId?restaurants.find(item=>item.id===editingId):null; const address=String(data.get("address")).trim(); const region=String(data.get("region")).trim(); const tags=data.getAll("tags").map(String).filter(tag=>TAG_OPTIONS.includes(tag)); const coords=previous&&previous.address===address?{lat:previous.lat,lng:previous.lng,coordinateSource:previous.coordinateSource,roadAddress:previous.roadAddress}:await geocodeAddress(address,region); const photos=await preparePhotos(elements.form.elements.namedItem("photos").files,previous); const item={id:previous?.id??crypto.randomUUID(),status,visitDate:String(data.get("visitDate")),name:String(data.get("name")).trim(),address,region,category:String(data.get("category")),subcategory:String(data.get("subcategory")).trim(),rating,visitCount:Number(data.get("visitCount")||0),revisit:String(data.get("revisit")),menuReviews:String(data.get("menuReviews")).trim(),tags,photos,comment:String(data.get("comment")).trim(),description:String(data.get("description")).trim(),...coords,createdAt:previous?.createdAt??new Date().toISOString(),updatedAt:new Date().toISOString()}; if(previous) restaurants=restaurants.map(place=>place.id===item.id?item:place); else restaurants.unshift(item); if(!saveRestaurants(restaurants)) throw new Error("브라우저 저장 공간을 확인해 주세요."); closeForm(); activeStatus="all"; activeProvince="전체"; activeRegion="전체"; activeCategory="전체"; activeTag="전체"; render(); selectRestaurant(item.id,true); }
+  try { const data=new FormData(elements.form); const status=String(data.get("status")); const rawRating=String(data.get("rating")).trim(); const rating=rawRating===""?null:Number(rawRating); if(status==="visited"&&!Number.isFinite(rating)) throw new Error("다녀온 맛집은 평점을 입력해 주세요."); if(rating!==null&&(!Number.isFinite(rating)||rating<0||rating>10)) throw new Error("평점은 0점부터 10점 사이로 입력해 주세요."); const previous=editingId?restaurants.find(item=>item.id===editingId):null; const address=String(data.get("address")).trim(); const region=String(data.get("region")).trim(); const tags=data.getAll("tags").map(String).filter(tag=>TAG_OPTIONS.includes(tag)); const selectedCoords=selectedAddressResult?.selectedAddress===address?{lat:selectedAddressResult.lat,lng:selectedAddressResult.lng,coordinateSource:"naver",roadAddress:selectedAddressResult.roadAddress}:null; const previousCoords=previous&&previous.address===address?{lat:previous.lat,lng:previous.lng,coordinateSource:previous.coordinateSource,roadAddress:previous.roadAddress}:null; const coords=selectedCoords??previousCoords; if(!coords) throw new Error("네이버 주소 검색 후 사용할 위치를 선택해 주세요."); const photos=await preparePhotos(elements.form.elements.namedItem("photos").files,previous); const item={id:previous?.id??crypto.randomUUID(),status,visitDate:String(data.get("visitDate")),name:String(data.get("name")).trim(),address,region,category:String(data.get("category")),subcategory:String(data.get("subcategory")).trim(),rating,visitCount:Number(data.get("visitCount")||0),revisit:String(data.get("revisit")),menuReviews:String(data.get("menuReviews")).trim(),tags,photos,comment:String(data.get("comment")).trim(),description:String(data.get("description")).trim(),...coords,createdAt:previous?.createdAt??new Date().toISOString(),updatedAt:new Date().toISOString()}; if(previous) restaurants=restaurants.map(place=>place.id===item.id?item:place); else restaurants.unshift(item); if(!saveRestaurants(restaurants)) throw new Error("브라우저 저장 공간을 확인해 주세요."); closeForm(); activeStatus="all"; activeProvince="전체"; activeRegion="전체"; activeCategory="전체"; activeTag="전체"; render(); selectRestaurant(item.id,true); }
   catch(error){ elements.status.textContent=error instanceof Error?error.message:"맛집을 저장하지 못했어요."; }
   finally { submit.disabled=false; submit.textContent=originalText; }
 }
@@ -94,6 +106,7 @@ document.querySelector("#resetFilters").addEventListener("click",()=>{activeStat
 document.querySelector("#locateButton").addEventListener("click",async()=>{try{await mapController.locate();}catch(error){window.alert(error instanceof Error?error.message:"현재 위치를 찾지 못했어요.");}});
 elements.form.addEventListener("submit",handleSubmit); elements.search.addEventListener("input",render); elements.sort.addEventListener("change",render);
 document.querySelector("#clearSearch").addEventListener("click",()=>{elements.search.value="";elements.search.focus();render();});
+document.querySelector("#searchAddressButton").addEventListener("click",searchAddress); elements.form.elements.namedItem("address").addEventListener("input",resetAddressSearch); elements.form.elements.namedItem("address").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();searchAddress();}});
 document.querySelector("#exportButton").addEventListener("click",exportBackup); document.querySelector("#importButton").addEventListener("click",()=>document.querySelector("#importInput").click()); document.querySelector("#importInput").addEventListener("change",importBackup);
 document.querySelector("#tagOptions").replaceChildren(...TAG_OPTIONS.map(tag=>{const label=document.createElement("label");label.className="tag-option";const input=document.createElement("input");input.type="checkbox";input.name="tags";input.value=tag;label.append(input,document.createTextNode(tag));return label;}));
 render();

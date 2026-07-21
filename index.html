@@ -63,7 +63,7 @@
         <label>목록 구분<select name="status" required><option value="visited">다녀온 맛집</option><option value="wishlist">가고 싶은 곳</option></select></label>
         <label>방문 날짜<input name="visitDate" type="date"></label>
         <label class="wide">식당 이름<input name="name" required maxlength="40" placeholder="예: 오래된 짬뽕집"></label>
-        <label class="wide">주소<input name="address" required maxlength="100" placeholder="도로명 주소를 입력해 주세요"></label>
+        <label class="wide address-field">주소<div class="address-search-row"><input name="address" required maxlength="100" placeholder="도로명 주소를 입력해 주세요"><button type="button" id="searchAddressButton">네이버 주소 검색</button></div><span class="address-search-status" id="addressSearchStatus"></span><div class="address-results" id="addressResults" hidden></div></label>
         <label>지역<input name="region" required maxlength="20" placeholder="예: 서울 성동구"></label>
         <label>카테고리<select name="category" required><option value="">선택</option><option>한식</option><option>중식</option><option>일식</option><option>양식</option><option>카페</option><option>분식</option><option>기타</option></select></label>
         <label>세부 카테고리<input name="subcategory" required maxlength="30" placeholder="예: 간짜장"></label>
