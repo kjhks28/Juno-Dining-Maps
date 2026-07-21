@@ -1,6 +1,7 @@
 import { CATEGORY_ICONS, REVISIT_LABELS } from "./js/constants.js";
 import { geocodeAddress } from "./js/geocoding.js";
 import { preparePhotos } from "./js/images.js";
+import { createMapController } from "./js/map.js";
 import { loadRestaurants, normalizeRestaurant, saveRestaurants, validateImportedItem } from "./js/storage.js";
 
 let restaurants = loadRestaurants();
@@ -9,10 +10,7 @@ let activeCategory = "전체";
 let activeStatus = "all";
 let activeId = null;
 let editingId = null;
-const markers = new Map();
-const map = L.map("map", { zoomControl:false }).setView([37.557,126.99],12);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
-L.control.zoom({position:"bottomleft"}).addTo(map);
+const mapController = await createMapController();
 
 const elements = {
   list:document.querySelector("#restaurantList"), empty:document.querySelector("#emptyState"),
@@ -40,12 +38,7 @@ function renderFilters(){
   elements.statusFilters.replaceChildren(createChip("전체","status","all"),createChip("다녀온 곳","status","visited"),createChip("가고 싶은 곳","status","wishlist"));
 }
 function renderMarkers(items){
-  markers.forEach(marker=>map.removeLayer(marker)); markers.clear();
-  items.forEach(item=>{
-    const icon=L.divIcon({className:"",html:`<div class="custom-marker"><span>${escapeText(CATEGORY_ICONS[item.category]||"맛")}</span></div>`,iconSize:[36,42],iconAnchor:[18,40]});
-    const score=hasRating(item)?`${item.rating}/10`:"평점 미등록"; const marker=L.marker([item.lat,item.lng],{icon}).addTo(map).bindPopup(`<div class="popup-name">${escapeText(item.name)}</div><div class="popup-meta">${escapeText(item.subcategory)} · ${score}</div>`);
-    marker.on("click",()=>selectRestaurant(item.id,false)); markers.set(item.id,marker);
-  });
+  mapController.renderMarkers(items,{getIconContent:item=>`<div class="custom-marker"><span>${escapeText(CATEGORY_ICONS[item.category]||"맛")}</span></div>`,getPopupContent:item=>`<div class="naver-popup"><div class="popup-name">${escapeText(item.name)}</div><div class="popup-meta">${escapeText(item.subcategory)} · ${hasRating(item)?`${item.rating}/10`:"평점 미등록"}</div></div>`,onSelect:id=>selectRestaurant(id,false)});
 }
 function renderCards(items){
   elements.list.innerHTML=items.map(item=>{ const score=hasRating(item)?`${item.rating}<small>/10</small>`:"<small>평점 없음</small>"; const photo=item.photos[0]?`<img class="card-photo" src="${item.photos[0]}" alt="">`:""; const menus=item.menuReviews?`<div class="menu-reviews">${escapeText(item.menuReviews).replace(/\n/g,"<br>")}</div>`:""; const visit=item.status==="wishlist"?"가고 싶은 곳":`${item.visitDate||"날짜 미등록"} · ${item.visitCount}회 방문`; const revisit=item.status==="visited"?`<br>${escapeText(REVISIT_LABELS[item.revisit]||REVISIT_LABELS.unknown)}`:""; const visitLabel=item.status==="wishlist"?"✓ 방문 완료":"＋ 오늘 방문"; return `<article class="restaurant-card ${activeId===item.id?"active":""}" data-id="${escapeText(item.id)}">${photo}<div class="card-body"><div class="card-top"><span class="category-dot"></span><span class="card-category">${escapeText(item.category)} · ${escapeText(item.subcategory)}</span><span class="card-region">${escapeText(item.region)}</span><span class="status-label ${item.status}">${visit}</span></div><h3>${escapeText(item.name)}</h3><p>“${escapeText(item.comment)}”</p><span class="rating">${score}</span><div class="card-detail">${escapeText(item.description)}<br>${escapeText(item.address)}${revisit}${menus}<div class="card-actions"><button class="visit-button" data-visit="${escapeText(item.id)}">${visitLabel}</button><button class="edit-button" data-edit="${escapeText(item.id)}">수정</button><button class="delete-button" data-delete="${escapeText(item.id)}">기록 삭제</button></div></div></div></article>`; }).join("");
@@ -57,7 +50,7 @@ function render(){
   const query=elements.search.value.trim();
   document.querySelector("#mapCount").textContent=items.length; document.querySelector("#totalBadge").textContent=`${restaurants.length}곳`; document.querySelector("#resultText").textContent=query?`‘${query}’ 검색 결과 · ${items.length}곳`:`${activeRegion==="전체"?"전체 지역":activeRegion} · ${items.length}곳`; document.querySelector("#clearSearch").hidden=!query;
 }
-function selectRestaurant(id,moveMap){ activeId=activeId===id?null:id; renderCards(getFilteredRestaurants()); const item=restaurants.find(place=>place.id===id); if(item&&moveMap){map.flyTo([item.lat,item.lng],15,{duration:.8}); markers.get(id)?.openPopup();} }
+function selectRestaurant(id,moveMap){ activeId=activeId===id?null:id; renderCards(getFilteredRestaurants()); const item=restaurants.find(place=>place.id===id); if(item&&moveMap) mapController.focus(id,item); }
 function deleteRestaurant(id){ if(!window.confirm("이 맛집 기록을 삭제할까요?")) return; restaurants=restaurants.filter(item=>item.id!==id); activeId=null; saveRestaurants(restaurants); render(); }
 function getLocalDate(){ const now=new Date(); const offset=now.getTimezoneOffset()*60000; return new Date(now.getTime()-offset).toISOString().slice(0,10); }
 function recordVisit(id){
@@ -88,7 +81,7 @@ async function importBackup(event){
 document.querySelector("#openFormButton").addEventListener("click",openCreateForm);
 ["#closeFormButton","#cancelFormButton"].forEach(selector=>document.querySelector(selector).addEventListener("click",closeForm));
 document.querySelector("#resetFilters").addEventListener("click",()=>{activeStatus="all";activeRegion="전체";activeCategory="전체";elements.search.value="";render();});
-document.querySelector("#locateButton").addEventListener("click",()=>map.locate({setView:true,maxZoom:15}));
+document.querySelector("#locateButton").addEventListener("click",async()=>{try{await mapController.locate();}catch(error){window.alert(error instanceof Error?error.message:"현재 위치를 찾지 못했어요.");}});
 elements.form.addEventListener("submit",handleSubmit); elements.search.addEventListener("input",render); elements.sort.addEventListener("change",render);
 document.querySelector("#clearSearch").addEventListener("click",()=>{elements.search.value="";elements.search.focus();render();});
 document.querySelector("#exportButton").addEventListener("click",exportBackup); document.querySelector("#importButton").addEventListener("click",()=>document.querySelector("#importInput").click()); document.querySelector("#importInput").addEventListener("change",importBackup);

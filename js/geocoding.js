@@ -1,17 +1,8 @@
-import { loadRuntimeConfig } from "./config.js";
 import { KOREAN_PROVINCES } from "./constants.js";
-
-const runtimeConfig = await loadRuntimeConfig();
-let naverSdkPromise = null;
+import { hasNaverClientId, loadNaverSdk } from "./naver-sdk.js";
 
 function findProvince(address,region){ const text=`${address} ${region}`; return Object.entries(KOREAN_PROVINCES).find(([,cities])=>cities.some(city=>text.includes(city)))?.[0]??""; }
 function enrichAddress(address,region){ const province=findProvince(address,region); return [province,address].filter(Boolean).join(", "); }
-function loadNaverSdk(){
-  if(window.naver?.maps?.Service) return Promise.resolve();
-  if(naverSdkPromise) return naverSdkPromise;
-  naverSdkPromise=new Promise((resolve,reject)=>{ const script=document.createElement("script"); script.src=`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(runtimeConfig.naverMapClientId)}&submodules=geocoder`; script.onload=()=>window.naver?.maps?.Service?resolve():reject(new Error("네이버 지도 SDK를 불러오지 못했습니다.")); script.onerror=()=>reject(new Error("네이버 지도 SDK 연결에 실패했습니다.")); document.head.append(script); });
-  return naverSdkPromise;
-}
 async function requestNaverGeocode(query){
   await loadNaverSdk();
   return new Promise((resolve,reject)=>window.naver.maps.Service.geocode({query},(status,response)=>{ if(status!==window.naver.maps.Service.Status.OK){reject(new Error("네이버 주소 검색에 실패했습니다."));return;} const result=response.v2?.addresses?.[0]; resolve(result?{lat:Number(result.y),lng:Number(result.x),coordinateSource:"naver",roadAddress:result.roadAddress||query}:null); }));
@@ -25,7 +16,7 @@ async function searchWithFallback(request,address,region){ let result=await requ
 
 export async function geocodeAddress(address,region){
   try {
-    if(runtimeConfig.naverMapClientId) {
+    if(hasNaverClientId()) {
       try { const result=await searchWithFallback(requestNaverGeocode,address,region); if(result) return result; }
       catch(error){ console.error("네이버 주소 검색을 사용할 수 없어 대체 검색을 시도합니다.",error); }
     }

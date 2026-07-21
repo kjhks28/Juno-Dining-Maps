@@ -24,7 +24,7 @@ Copy-Item js/config.local.example.js js/config.local.js
 export const NAVER_MAP_CLIENT_ID = "발급받은_Client_ID";
 ```
 
-`config.local.js`는 `.gitignore`에 포함되어 커밋되지 않습니다. Client ID가 설정되면 새로 등록하거나 주소를 변경하는 맛집은 네이버 Geocoder를 먼저 사용하고, 실패하거나 설정이 없을 때만 OpenStreetMap Nominatim을 대체 경로로 사용합니다. 저장 데이터에는 `coordinateSource`가 `naver` 또는 `osm`으로 함께 기록됩니다.
+`config.local.js`는 `.gitignore`에 포함되어 커밋되지 않습니다. Client ID가 설정되면 지도 화면은 네이버 Web Dynamic Map으로 표시됩니다. 새로 등록하거나 주소를 변경하는 맛집은 네이버 Geocoder를 먼저 사용하고, 실패할 때만 OpenStreetMap Nominatim을 대체 검색으로 사용합니다. 저장 데이터에는 `coordinateSource`가 `naver` 또는 `osm`으로 함께 기록됩니다.
 
 ### Client Secret 보안
 
@@ -46,12 +46,14 @@ my-food-map/
 │  ├─ constants.js            공통 상수와 한국 행정구역
 │  ├─ geocoding.js            네이버 우선 주소→좌표 변환
 │  ├─ images.js               사진 검증·압축
+│  ├─ map.js                  네이버 지도·마커·정보창 제어
+│  ├─ naver-sdk.js            네이버 Maps SDK 단일 로더
 │  ├─ seed-data.js            최초 샘플 데이터
 │  └─ storage.js              localStorage와 데이터 검증
 └─ .gitignore                 비밀·로컬 설정 제외
 ```
 
-지도 화면 자체는 현재 Leaflet/OpenStreetMap을 사용하지만 좌표와 주소 검색은 지도 화면에서 분리되어 있습니다. 정식 도메인이 확정되면 지도 표시 책임만 네이버 Web Dynamic Map 어댑터로 교체하고, 저장된 `lat`/`lng` 데이터는 그대로 사용할 수 있습니다.
+지도 화면과 주소 검색은 네이버 Maps JavaScript API v3를 사용합니다. 저장된 `lat`/`lng` 좌표는 지도 공급자와 독립적인 위·경도 값이므로 기존 데이터도 그대로 표시됩니다. 정식 도메인이 확정되면 네이버 클라우드 Application의 Web 서비스 URL에 운영 도메인을 추가하세요.
 
 ## 데이터 백업
 
