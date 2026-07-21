@@ -1,0 +1,2 @@
+[functions.naver-place-search]
+verify_jwt = true

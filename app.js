@@ -4,7 +4,7 @@ import { preparePhotos } from "./js/images.js";
 import { createMapController } from "./js/map.js";
 import { getDistrict, getProvince } from "./js/regions.js";
 import { loadLocalRestaurants, loadRestaurants, normalizeRestaurant, saveRestaurants, validateImportedItem } from "./js/storage.js";
-import { getAdminSession, hasSupabaseConfig, requestAdminMagicLink, signOutAdmin } from "./js/supabase.js";
+import { getAdminSession, hasSupabaseConfig, requestAdminMagicLink, searchNaverPlaces, signOutAdmin } from "./js/supabase.js";
 
 let restaurants = await loadRestaurants();
 let isAdmin = Boolean(await getAdminSession().catch(error=>{console.error("관리자 세션을 확인하지 못했습니다.",error);return null;}));
@@ -80,13 +80,21 @@ function openEditForm(id){
   document.querySelector("#dialogEyebrow").textContent="EDIT PLACE"; document.querySelector("#dialogTitle").textContent="맛집 수정하기"; document.querySelector("#submitFormButton").textContent="수정 내용 저장"; elements.dialog.showModal();
 }
 function closeForm(){ editingId=null; elements.form.reset(); elements.status.textContent=""; elements.dialog.close(); }
+function applyAddressResult(result,placeName=""){
+  selectedAddressResult={...result,selectedAddress:result.roadAddress};setFormValue("address",result.roadAddress);if(placeName)setFormValue("name",placeName);if(result.region)setFormValue("region",result.region);elements.addressStatus.textContent=result.region?`네이버 지도 위치를 선택하고 지역을 ${result.region}(으)로 입력했습니다.`:"네이버 지도 위치를 선택했습니다.";elements.addressResults.hidden=true;mapController.moveTo(result.lat,result.lng);
+}
+async function selectPlaceResult(result,button){
+  button.disabled=true;elements.addressStatus.textContent="선택한 식당의 지도 위치를 확인하는 중…";
+  try { const addresses=await searchNaverAddresses(result.roadAddress);if(addresses.length===0) throw new Error("선택한 식당의 지도 좌표를 찾지 못했습니다.");applyAddressResult(addresses[0],result.name); }
+  catch(error){console.error("선택한 식당의 위치를 확인하지 못했습니다.",error);elements.addressStatus.textContent=error instanceof Error?error.message:"식당 위치를 확인하지 못했습니다.";button.disabled=false;}
+}
 function renderAddressResults(results){
-  elements.addressResults.replaceChildren(...results.map(result=>{const button=document.createElement("button");button.type="button";button.className="address-result";const road=document.createElement("strong");road.textContent=result.roadAddress;const jibun=document.createElement("span");jibun.textContent=result.jibunAddress?`지번 ${result.jibunAddress}`:"지번 주소 없음";button.append(road,jibun);button.addEventListener("click",()=>{selectedAddressResult={...result,selectedAddress:result.roadAddress};setFormValue("address",result.roadAddress);if(result.region)setFormValue("region",result.region);elements.addressStatus.textContent=result.region?`네이버 지도 위치를 선택하고 지역을 ${result.region}(으)로 입력했습니다.`:"네이버 지도 위치를 선택했습니다.";elements.addressResults.hidden=true;mapController.moveTo(result.lat,result.lng);});return button;}));
+  elements.addressResults.replaceChildren(...results.map(result=>{const button=document.createElement("button");button.type="button";button.className="address-result";const title=document.createElement("strong");title.textContent=result.type==="place"?result.name:result.roadAddress;const detail=document.createElement("span");detail.textContent=result.type==="place"?[result.category,result.roadAddress].filter(Boolean).join(" · "):(result.jibunAddress?`지번 ${result.jibunAddress}`:"지번 주소 없음");button.append(title,detail);button.addEventListener("click",()=>result.type==="place"?selectPlaceResult(result,button):applyAddressResult(result));return button;}));
   elements.addressResults.hidden=results.length===0;
 }
 async function searchAddress(){
-  const button=document.querySelector("#searchAddressButton"); const address=String(elements.form.elements.namedItem("address").value).trim(); button.disabled=true;elements.addressStatus.textContent="네이버 지도에서 검색하는 중…";elements.addressResults.hidden=true;
-  try { const results=await searchNaverAddresses(address); if(results.length===0) throw new Error("검색 결과가 없습니다."); renderAddressResults(results);elements.addressStatus.textContent=`검색 결과 ${results.length}개 · 사용할 주소를 선택해 주세요.`; }
+  const button=document.querySelector("#searchAddressButton"); const address=String(elements.form.elements.namedItem("address").value).trim(); button.disabled=true;elements.addressStatus.textContent="네이버에서 상호명과 주소를 검색하는 중…";elements.addressResults.hidden=true;
+  try { const [placesResult,addressesResult]=await Promise.allSettled([searchNaverPlaces(address),searchNaverAddresses(address)]);const places=placesResult.status==="fulfilled"?placesResult.value.map(place=>({...place,type:"place"})):[];const addresses=addressesResult.status==="fulfilled"?addressesResult.value.map(item=>({...item,type:"address"})):[];const results=[...places,...addresses];if(results.length===0){const failure=placesResult.status==="rejected"?placesResult.reason:addressesResult.status==="rejected"?addressesResult.reason:null;throw failure instanceof Error?failure:new Error("검색 결과가 없습니다.");}renderAddressResults(results);elements.addressStatus.textContent=`검색 결과 ${results.length}개 · 사용할 식당 또는 주소를 선택해 주세요.`; }
   catch(error){ console.error("네이버 주소 검색에 실패했습니다.",error);resetAddressSearch();elements.addressStatus.textContent=error instanceof Error?error.message:"주소를 검색하지 못했어요."; }
   finally { button.disabled=false; }
 }

@@ -38,6 +38,21 @@ Client Secret은 이 브라우저 프로젝트의 HTML, JavaScript, `config.loca
 
 이 기능은 네이버 지도 SDK의 주소 Geocoder를 사용하므로 식당 상호명 검색이 아니라 도로명·지번 주소 검색을 지원합니다. 상호명 기반 장소 검색을 추가하려면 별도의 네이버 지역 검색 API와 Client Secret을 보호할 백엔드가 필요합니다.
 
+## 네이버 상호명 검색
+
+상호명 검색은 네이버 개발자센터의 지역 검색 API를 Supabase Edge Function에서 호출합니다. Client Secret은 브라우저나 GitHub Pages에 포함하지 않습니다.
+
+1. Supabase `Edge Functions → Secrets`에 `NAVER_SEARCH_CLIENT_ID`, `NAVER_SEARCH_CLIENT_SECRET`을 등록합니다.
+2. Supabase CLI로 프로젝트를 연결하고 함수를 배포합니다.
+
+```powershell
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy naver-place-search
+```
+
+함수는 로그인한 관리자 요청만 허용합니다. 검색 결과를 선택하면 상호명과 주소가 입력되고, 기존 네이버 Geocoding 결과를 이용해 지역과 지도 좌표도 함께 반영됩니다.
+
 ## 프로젝트 구조
 
 ```text
@@ -57,6 +72,11 @@ my-food-map/
 │  ├─ regions.js              시·도와 세부 지역 분류
 │  ├─ seed-data.js            최초 샘플 데이터
 │  └─ storage.js              localStorage와 데이터 검증
+├─ supabase/
+│  ├─ config.toml             Edge Function 인증 설정
+│  ├─ setup.sql               공유 데이터 테이블과 RLS 설정
+│  └─ functions/naver-place-search/index.ts
+│                              네이버 상호명 검색 프록시
 └─ .gitignore                 비밀·로컬 설정 제외
 ```
 
