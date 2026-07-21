@@ -10,7 +10,8 @@ async function getClient(){
   return clientPromise;
 }
 export async function getAdminSession(){ const client=await getClient();if(!client) return null;const {data,error}=await client.auth.getSession();if(error) throw error;return data.session; }
-export async function signInAdmin(email,password){ const client=await getClient();if(!client) throw new Error("Supabase 설정이 없습니다.");const {data,error}=await client.auth.signInWithPassword({email,password});if(error) throw error;return data.session; }
+export async function requestAdminOtp(email){ const client=await getClient();if(!client) throw new Error("Supabase 설정이 없습니다.");const {error}=await client.auth.signInWithOtp({email,options:{shouldCreateUser:false}});if(error) throw error; }
+export async function verifyAdminOtp(email,token){ const client=await getClient();if(!client) throw new Error("Supabase 설정이 없습니다.");const {data,error}=await client.auth.verifyOtp({email,token,type:"email"});if(error) throw error;return data.session; }
 export async function signOutAdmin(){ const client=await getClient();if(!client) return;const {error}=await client.auth.signOut();if(error) throw error; }
 export async function fetchSharedCollection(){ const client=await getClient();if(!client) return null;const {data,error}=await client.from("food_map_collections").select("restaurants").eq("id","juno").single();if(error) throw error;return data.restaurants; }
 export async function updateSharedCollection(restaurants){ const client=await getClient();if(!client) return false;const {error}=await client.from("food_map_collections").update({restaurants,updated_at:new Date().toISOString()}).eq("id","juno");if(error) throw error;return true; }
