@@ -1,8 +1,9 @@
-import { STORAGE_KEY } from "./constants.js";
+import { STORAGE_KEY, TAG_OPTIONS } from "./constants.js";
 import { seedRestaurants } from "./seed-data.js";
 
 export function normalizeRestaurant(item){
-  return {...item,status:item.status==="wishlist"?"wishlist":"visited",visitDate:item.visitDate??"",visitCount:Number(item.visitCount??1),revisit:item.revisit??"unknown",menuReviews:item.menuReviews??"",photos:Array.isArray(item.photos)?item.photos.filter(photo=>typeof photo==="string"&&/^data:image\/(jpeg|png|webp);base64,/.test(photo)):[]};
+  const tags=Array.isArray(item.tags)?item.tags.filter(tag=>TAG_OPTIONS.includes(tag)):[];
+  return {...item,status:item.status==="wishlist"?"wishlist":"visited",visitDate:item.visitDate??"",visitCount:Number(item.visitCount??1),revisit:item.revisit??"unknown",menuReviews:item.menuReviews??"",tags:[...new Set(tags)],photos:Array.isArray(item.photos)?item.photos.filter(photo=>typeof photo==="string"&&/^data:image\/(jpeg|png|webp);base64,/.test(photo)):[]};
 }
 export function loadRestaurants(){
   try { const saved=localStorage.getItem(STORAGE_KEY); const parsed=saved?JSON.parse(saved):seedRestaurants; return Array.isArray(parsed)?parsed.map(normalizeRestaurant):seedRestaurants.map(normalizeRestaurant); }

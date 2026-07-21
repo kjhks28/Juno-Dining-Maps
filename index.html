@@ -44,6 +44,10 @@
         <div class="filter-title"><span>카테고리</span></div>
         <div class="chips category-chips" id="categoryFilters"></div>
       </div>
+      <div class="filter-block">
+        <div class="filter-title"><span>태그</span></div>
+        <div class="chips tag-filter-chips" id="tagFilters"></div>
+      </div>
 
       <div class="result-summary"><span id="resultText">전체 맛집</span><select id="sortSelect" aria-label="정렬"><option value="rating">평점 높은 순</option><option value="newest">최근 등록 순</option><option value="name">이름 순</option></select></div>
       <div class="data-actions"><button id="exportButton">백업 내보내기</button><button id="importButton">백업 불러오기</button><input id="importInput" type="file" accept="application/json,.json" hidden></div>
@@ -66,6 +70,7 @@
         <label>평점 (10점 만점)<input name="rating" type="number" min="0" max="10" step="0.1" placeholder="가고 싶은 곳은 비워도 돼요"></label>
         <label>방문 횟수<input name="visitCount" type="number" min="0" max="999" step="1" value="1"></label>
         <label>재방문 의사<select name="revisit"><option value="yes">꼭 다시 갈래요</option><option value="maybe">고민 중이에요</option><option value="no">재방문은 안 할래요</option><option value="unknown">아직 모르겠어요</option></select></label>
+        <fieldset class="wide tag-fieldset"><legend>태그 (복수 선택)</legend><div class="tag-options" id="tagOptions"></div></fieldset>
         <label class="wide">메뉴별 평가<textarea name="menuReviews" maxlength="500" rows="3" placeholder="한 줄에 하나씩 입력해 주세요. 예:&#10;간짜장 9.4&#10;탕수육 8.8"></textarea></label>
         <label class="wide">사진 첨부 (최대 3장)<input name="photos" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple><small>각 5MB 이하 JPG, PNG, WebP · 수정할 때 비워두면 기존 사진이 유지됩니다.</small></label>
         <label class="wide">한 줄 코멘트<input name="comment" required maxlength="60" placeholder="이 집을 한 문장으로 남겨보세요"></label>
