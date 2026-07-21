@@ -20,6 +20,8 @@
     </div>
   </header>
 
+  <nav class="mobile-view-toggle" aria-label="모바일 화면 전환"><button type="button" data-mobile-view="map" class="active">지도</button><button type="button" data-mobile-view="list">목록</button></nav>
+
   <main class="app-shell">
     <section class="map-panel">
       <div id="map" aria-label="맛집 지도"></div>
@@ -37,19 +39,21 @@
         <div class="filter-title"><span>목록</span></div>
         <div class="chips status-chips" id="statusFilters"></div>
       </div>
-      <div class="filter-block">
-        <div class="filter-title"><span>지역</span><button id="resetFilters">전체 초기화</button></div>
+      <details class="filter-block filter-details" open>
+        <summary class="filter-title"><span>지역</span></summary>
         <div class="chips province-chips" id="provinceFilters"></div>
         <div class="chips subregion-chips" id="regionFilters" hidden></div>
-      </div>
-      <div class="filter-block category-block">
-        <div class="filter-title"><span>카테고리</span></div>
+      </details>
+      <details class="filter-block filter-details category-block">
+        <summary class="filter-title"><span>카테고리</span></summary>
         <div class="chips category-chips" id="categoryFilters"></div>
-      </div>
-      <div class="filter-block">
-        <div class="filter-title"><span>태그</span></div>
+      </details>
+      <details class="filter-block filter-details">
+        <summary class="filter-title"><span>태그</span></summary>
         <div class="chips tag-filter-chips" id="tagFilters"></div>
-      </div>
+      </details>
+
+      <div class="active-filter-bar" id="activeFilterBar" hidden><div id="activeFilterSummary"></div><button type="button" id="resetFilters">전체 초기화</button></div>
 
       <div class="result-summary"><span id="resultText">전체 맛집</span><select id="sortSelect" aria-label="정렬"><option value="rating">평점 높은 순</option><option value="newest">최근 등록 순</option><option value="name">이름 순</option></select></div>
       <div class="restaurant-list" id="restaurantList"></div>
@@ -83,6 +87,7 @@
   </dialog>
 
   <dialog id="authDialog" class="auth-dialog"><form id="authForm" method="dialog"><div class="dialog-head"><div><span class="eyebrow">ADMIN</span><h2>관리자 로그인</h2></div><button type="button" class="close-button" id="closeAuthButton">×</button></div><label>관리자 이메일<input name="email" type="email" required autocomplete="email"></label><p class="form-status" id="authStatus" role="status"></p><button type="submit" class="primary-button" id="authSubmitButton">로그인 링크 받기</button></form></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <script type="module" src="app.js"></script>
 </body>
 </html>
