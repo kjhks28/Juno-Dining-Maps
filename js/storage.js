@@ -15,8 +15,13 @@ export async function loadRestaurants(){
   try { const shared=await fetchSharedCollection();return Array.isArray(shared)?shared.map(normalizeRestaurant):[]; }
   catch(error){ console.error("공용 맛집 데이터를 불러오지 못해 로컬 데이터를 표시합니다.",error);return loadLocalRestaurants(); }
 }
-export function saveRestaurants(restaurants){
-  try { localStorage.setItem(STORAGE_KEY,JSON.stringify(restaurants));if(hasSupabaseConfig()) updateSharedCollection(restaurants).catch(error=>console.error("공용 맛집 데이터를 동기화하지 못했습니다.",error));return true; }
-  catch(error){ console.error("맛집을 저장하지 못했습니다.",error); return false; }
+export async function saveRestaurants(restaurants){
+  try {
+    const serialized=JSON.stringify(restaurants);
+    if(hasSupabaseConfig()) await updateSharedCollection(restaurants);
+    try { localStorage.setItem(STORAGE_KEY,serialized); }
+    catch(error){ console.warn("로컬 캐시를 저장하지 못했지만 서버 저장은 완료됐습니다.",error); }
+    return true;
+  } catch(error){ console.error("맛집을 서버에 저장하지 못했습니다.",error); return false; }
 }
 export function validateImportedItem(item){ return item&&typeof item==="object"&&typeof item.name==="string"&&item.name.length<=40&&typeof item.address==="string"&&item.address.length<=100&&Number.isFinite(Number(item.lat))&&Number.isFinite(Number(item.lng)); }
