@@ -7,6 +7,18 @@ async function requestNaverGeocode(query){
   return results[0]??null;
 }
 
+function getAddressElement(result,type){
+  const elements=Array.isArray(result?.addressElements)?result.addressElements:[];
+  const element=elements.find(item=>Array.isArray(item.types)&&item.types.includes(type));
+  return String(element?.longName??element?.shortName??"").trim();
+}
+
+export function getRegionFromNaverAddress(result){
+  const province=getAddressElement(result,"SIDO");
+  const district=getAddressElement(result,"SIGUGUN");
+  return [province,district].filter(Boolean).join(" ");
+}
+
 export async function searchNaverAddresses(query){
   const normalizedQuery=String(query??"").trim();
   if(normalizedQuery.length<2) throw new Error("검색할 주소를 두 글자 이상 입력해 주세요.");
@@ -14,7 +26,7 @@ export async function searchNaverAddresses(query){
   return new Promise((resolve,reject)=>window.naver.maps.Service.geocode({query:normalizedQuery},(status,response)=>{
     if(status!==window.naver.maps.Service.Status.OK){reject(new Error("네이버 주소 검색에 실패했습니다."));return;}
     const addresses=Array.isArray(response.v2?.addresses)?response.v2.addresses:[];
-    const results=addresses.slice(0,5).map(result=>({lat:Number(result.y),lng:Number(result.x),coordinateSource:"naver",roadAddress:result.roadAddress||result.jibunAddress||normalizedQuery,jibunAddress:result.jibunAddress||""})).filter(result=>Number.isFinite(result.lat)&&Number.isFinite(result.lng));
+    const results=addresses.slice(0,5).map(result=>({lat:Number(result.y),lng:Number(result.x),coordinateSource:"naver",roadAddress:result.roadAddress||result.jibunAddress||normalizedQuery,jibunAddress:result.jibunAddress||"",region:getRegionFromNaverAddress(result)})).filter(result=>Number.isFinite(result.lat)&&Number.isFinite(result.lng));
     resolve(results);
   }));
 }
