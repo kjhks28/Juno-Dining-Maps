@@ -65,3 +65,22 @@ my-food-map/
 ## 데이터 백업
 
 우측 대시보드의 `백업 내보내기`로 사진을 포함한 기록을 JSON 파일로 저장할 수 있습니다. 네이버 지도로 전환하거나 브라우저를 변경하기 전에 백업하는 것을 권장합니다.
+
+## 공용 데이터와 관리자 설정
+
+1. Supabase SQL Editor에서 [`supabase/setup.sql`](supabase/setup.sql)을 실행합니다.
+2. Authentication의 Users에서 관리자 계정 하나를 생성합니다.
+3. 일반 사용자가 계정을 만들지 못하도록 Authentication 설정에서 신규 가입을 비활성화합니다.
+4. 관리자 로그인 후 `로컬 데이터 올리기`를 눌러 기존 브라우저 기록을 공용 목록으로 이전합니다.
+
+RLS 정책에 따라 익명 방문자는 `juno` 컬렉션을 읽을 수만 있고, 인증된 관리자만 갱신할 수 있습니다. Secret key와 `service_role` key는 브라우저나 GitHub Actions에 입력하지 않습니다.
+
+## GitHub Pages 자동 배포
+
+GitHub 저장소 `Settings → Secrets and variables → Actions`에 다음 Repository secret을 추가합니다.
+
+- `NAVER_MAP_CLIENT_ID`
+- `SUPABASE_URL`
+- `SUPABASE_PUBLISHABLE_KEY`
+
+이후 `Settings → Pages → Build and deployment → Source`를 `GitHub Actions`로 선택합니다. `main`에 푸시할 때마다 `.github/workflows/pages.yml`이 사이트를 다시 배포합니다. 기본 주소는 `https://kjhks28.github.io/Juno-Dining-Maps/`이며, 이 주소를 네이버 클라우드 Maps Application의 Web 서비스 URL에도 등록해야 합니다.

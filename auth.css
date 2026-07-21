@@ -1,0 +1,7 @@
+.card-actions{display:none}
+.admin-mode .card-actions{display:flex}
+.auth-button{padding:10px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--muted);cursor:pointer}
+.auth-dialog{width:min(390px,calc(100% - 30px))}
+.auth-dialog form{display:grid;gap:14px}
+.auth-dialog label{display:grid;gap:7px;font-size:12px;font-weight:700}
+.auth-dialog input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px}

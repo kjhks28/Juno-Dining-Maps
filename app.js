@@ -3,9 +3,11 @@ import { searchNaverAddresses } from "./js/geocoding.js";
 import { preparePhotos } from "./js/images.js";
 import { createMapController } from "./js/map.js";
 import { getDistrict, getProvince } from "./js/regions.js";
-import { loadRestaurants, normalizeRestaurant, saveRestaurants, validateImportedItem } from "./js/storage.js";
+import { loadLocalRestaurants, loadRestaurants, normalizeRestaurant, saveRestaurants, validateImportedItem } from "./js/storage.js";
+import { getAdminSession, hasSupabaseConfig, signInAdmin, signOutAdmin } from "./js/supabase.js";
 
-let restaurants = loadRestaurants();
+let restaurants = await loadRestaurants();
+let isAdmin = Boolean(await getAdminSession().catch(error=>{console.error("관리자 세션을 확인하지 못했습니다.",error);return null;}));
 let activeRegion = "전체";
 let activeProvince = "전체";
 let activeCategory = "전체";
@@ -56,16 +58,17 @@ function renderCards(items){
 }
 function render(){
   renderFilters(); const items=getFilteredRestaurants(); renderCards(items); renderMarkers(items);
+  document.body.classList.toggle("admin-mode",isAdmin);document.querySelector("#openFormButton").hidden=!isAdmin;document.querySelector("#importButton").hidden=!isAdmin;document.querySelector("#migrateLocalButton").hidden=!isAdmin;document.querySelector("#authButton").textContent=isAdmin?"로그아웃":"관리자 로그인";
   const query=elements.search.value.trim();
   const regionLabel=activeRegion!=="전체"?activeRegion:activeProvince!=="전체"?activeProvince:"전체 지역";
   document.querySelector("#mapCount").textContent=items.length; document.querySelector("#totalBadge").textContent=`${restaurants.length}곳`; document.querySelector("#resultText").textContent=query?`‘${query}’ 검색 결과 · ${items.length}곳`:`${regionLabel} · ${items.length}곳`; document.querySelector("#clearSearch").hidden=!query;
 }
 function selectRestaurant(id,moveMap){ activeId=activeId===id?null:id; renderCards(getFilteredRestaurants()); const item=restaurants.find(place=>place.id===id); if(item&&moveMap) mapController.focus(id,item); }
-function deleteRestaurant(id){ if(!window.confirm("이 맛집 기록을 삭제할까요?")) return; restaurants=restaurants.filter(item=>item.id!==id); activeId=null; saveRestaurants(restaurants); render(); }
+async function deleteRestaurant(id){ if(!isAdmin||!window.confirm("이 맛집 기록을 삭제할까요?")) return; restaurants=restaurants.filter(item=>item.id!==id); activeId=null; if(!await saveRestaurants(restaurants)){window.alert("공용 목록에 저장하지 못했습니다.");return;} render(); }
 function getLocalDate(){ const now=new Date(); const offset=now.getTimezoneOffset()*60000; return new Date(now.getTime()-offset).toISOString().slice(0,10); }
-function recordVisit(id){
+async function recordVisit(id){
   const item=restaurants.find(place=>place.id===id); if(!item) return; const savedCount=Number.isFinite(Number(item.visitCount))?Number(item.visitCount):0; const count=item.status==="wishlist"?0:savedCount;
-  restaurants=restaurants.map(place=>place.id===id?{...place,status:"visited",visitDate:getLocalDate(),visitCount:count+1,updatedAt:new Date().toISOString()}:place); saveRestaurants(restaurants); render();
+  restaurants=restaurants.map(place=>place.id===id?{...place,status:"visited",visitDate:getLocalDate(),visitCount:count+1,updatedAt:new Date().toISOString()}:place); if(!await saveRestaurants(restaurants)){window.alert("방문 기록을 저장하지 못했습니다.");return;} render();
 }
 function setFormValue(name,value){ const field=elements.form.elements.namedItem(name); if(field) field.value=String(value); }
 function setTagValues(tags=[]){ elements.form.querySelectorAll('input[name="tags"]').forEach(input=>{input.checked=tags.includes(input.value);}); }
@@ -89,6 +92,7 @@ async function searchAddress(){
 }
 async function handleSubmit(event){
   event.preventDefault(); const submit=elements.form.querySelector("[type=submit]"); const originalText=submit.textContent; submit.disabled=true; submit.textContent="저장하는 중…"; elements.status.textContent="";
+  if(!isAdmin){elements.status.textContent="관리자 로그인 후 저장할 수 있습니다.";submit.disabled=false;submit.textContent=originalText;return;}
   try { const data=new FormData(elements.form); const status=String(data.get("status")); const rawRating=String(data.get("rating")).trim(); const rating=rawRating===""?null:Number(rawRating); if(status==="visited"&&!Number.isFinite(rating)) throw new Error("다녀온 맛집은 평점을 입력해 주세요."); if(rating!==null&&(!Number.isFinite(rating)||rating<0||rating>10)) throw new Error("평점은 0점부터 10점 사이로 입력해 주세요."); const previous=editingId?restaurants.find(item=>item.id===editingId):null; const address=String(data.get("address")).trim(); const region=String(data.get("region")).trim(); const tags=data.getAll("tags").map(String).filter(tag=>TAG_OPTIONS.includes(tag)); const selectedCoords=selectedAddressResult?.selectedAddress===address?{lat:selectedAddressResult.lat,lng:selectedAddressResult.lng,coordinateSource:"naver",roadAddress:selectedAddressResult.roadAddress}:null; const previousCoords=previous&&previous.address===address?{lat:previous.lat,lng:previous.lng,coordinateSource:previous.coordinateSource,roadAddress:previous.roadAddress}:null; const coords=selectedCoords??previousCoords; if(!coords) throw new Error("네이버 주소 검색 후 사용할 위치를 선택해 주세요."); const photos=await preparePhotos(elements.form.elements.namedItem("photos").files,previous); const item={id:previous?.id??crypto.randomUUID(),status,visitDate:String(data.get("visitDate")),name:String(data.get("name")).trim(),address,region,category:String(data.get("category")),subcategory:String(data.get("subcategory")).trim(),rating,visitCount:Number(data.get("visitCount")||0),revisit:String(data.get("revisit")),menuReviews:String(data.get("menuReviews")).trim(),tags,photos,comment:String(data.get("comment")).trim(),description:String(data.get("description")).trim(),...coords,createdAt:previous?.createdAt??new Date().toISOString(),updatedAt:new Date().toISOString()}; if(previous) restaurants=restaurants.map(place=>place.id===item.id?item:place); else restaurants.unshift(item); if(!saveRestaurants(restaurants)) throw new Error("브라우저 저장 공간을 확인해 주세요."); closeForm(); activeStatus="all"; activeProvince="전체"; activeRegion="전체"; activeCategory="전체"; activeTag="전체"; render(); selectRestaurant(item.id,true); }
   catch(error){ elements.status.textContent=error instanceof Error?error.message:"맛집을 저장하지 못했어요."; }
   finally { submit.disabled=false; submit.textContent=originalText; }
@@ -108,5 +112,9 @@ elements.form.addEventListener("submit",handleSubmit); elements.search.addEventL
 document.querySelector("#clearSearch").addEventListener("click",()=>{elements.search.value="";elements.search.focus();render();});
 document.querySelector("#searchAddressButton").addEventListener("click",searchAddress); elements.form.elements.namedItem("address").addEventListener("input",resetAddressSearch); elements.form.elements.namedItem("address").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();searchAddress();}});
 document.querySelector("#exportButton").addEventListener("click",exportBackup); document.querySelector("#importButton").addEventListener("click",()=>document.querySelector("#importInput").click()); document.querySelector("#importInput").addEventListener("change",importBackup);
+async function toggleAdmin(){ if(!hasSupabaseConfig()){window.alert("Supabase 설정이 없습니다.");return;} if(isAdmin){try{await signOutAdmin();isAdmin=false;render();}catch(error){console.error("로그아웃하지 못했습니다.",error);window.alert("로그아웃하지 못했어요.");}return;}document.querySelector("#authDialog").showModal(); }
+async function handleAdminLogin(event){event.preventDefault();const form=event.currentTarget;const status=document.querySelector("#authStatus");const data=new FormData(form);status.textContent="로그인하는 중…";try{await signInAdmin(String(data.get("email")).trim(),String(data.get("password")));isAdmin=true;form.reset();document.querySelector("#authDialog").close();render();}catch(error){console.error("관리자 로그인에 실패했습니다.",error);status.textContent="이메일 또는 비밀번호를 확인해 주세요.";}}
+function migrateLocalData(){if(!isAdmin) return;const local=loadLocalRestaurants();if(!window.confirm(`이 브라우저의 ${local.length}개 기록으로 공용 목록을 교체할까요?`)) return;restaurants=local;if(!saveRestaurants(restaurants)){window.alert("로컬 데이터를 올리지 못했습니다.");return;}render();window.alert("공용 목록에 업로드를 요청했습니다.");}
+document.querySelector("#authButton").addEventListener("click",toggleAdmin);document.querySelector("#authForm").addEventListener("submit",handleAdminLogin);document.querySelector("#closeAuthButton").addEventListener("click",()=>document.querySelector("#authDialog").close());document.querySelector("#migrateLocalButton").addEventListener("click",migrateLocalData);
 document.querySelector("#tagOptions").replaceChildren(...TAG_OPTIONS.map(tag=>{const label=document.createElement("label");label.className="tag-option";const input=document.createElement("input");input.type="checkbox";input.name="tags";input.value=tag;label.append(input,document.createTextNode(tag));return label;}));
 render();

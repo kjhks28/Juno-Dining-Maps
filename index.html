@@ -8,12 +8,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Pretendard:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="auth.css">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="#" aria-label="Juno 맛집 리스트 홈"><span class="brand-mark">J</span><span>Juno 맛집 리스트</span></a>
     <div class="header-actions">
       <label class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="식당명, 메뉴, 지역으로 검색" aria-label="맛집 검색"><button type="button" id="clearSearch" aria-label="검색어 지우기" hidden>×</button></label>
+      <button class="auth-button" id="authButton">관리자 로그인</button>
       <button class="primary-button" id="openFormButton">＋ 맛집 기록하기</button>
     </div>
   </header>
@@ -50,7 +52,7 @@
       </div>
 
       <div class="result-summary"><span id="resultText">전체 맛집</span><select id="sortSelect" aria-label="정렬"><option value="rating">평점 높은 순</option><option value="newest">최근 등록 순</option><option value="name">이름 순</option></select></div>
-      <div class="data-actions"><button id="exportButton">백업 내보내기</button><button id="importButton">백업 불러오기</button><input id="importInput" type="file" accept="application/json,.json" hidden></div>
+      <div class="data-actions"><button id="exportButton">백업 내보내기</button><button id="importButton">백업 불러오기</button><button id="migrateLocalButton">로컬 데이터 올리기</button><input id="importInput" type="file" accept="application/json,.json" hidden></div>
       <div class="restaurant-list" id="restaurantList"></div>
       <div class="empty-state" id="emptyState" hidden><span>🍽️</span><strong>조건에 맞는 맛집이 없어요</strong><p>필터를 바꾸거나 새로운 맛집을 기록해 보세요.</p></div>
     </aside>
@@ -81,6 +83,7 @@
     </form>
   </dialog>
 
+  <dialog id="authDialog" class="auth-dialog"><form id="authForm" method="dialog"><div class="dialog-head"><div><span class="eyebrow">ADMIN</span><h2>관리자 로그인</h2></div><button type="button" class="close-button" id="closeAuthButton">×</button></div><label>이메일<input name="email" type="email" required autocomplete="username"></label><label>비밀번호<input name="password" type="password" required autocomplete="current-password"></label><p class="form-status" id="authStatus" role="status"></p><button type="submit" class="primary-button">로그인</button></form></dialog>
   <script type="module" src="app.js"></script>
 </body>
 </html>
