@@ -71,8 +71,8 @@ my-food-map/
 1. Supabase SQL Editor에서 [`supabase/setup.sql`](supabase/setup.sql)을 실행합니다.
 2. Authentication의 Users에서 관리자 이메일 계정 하나를 생성합니다.
 3. 일반 사용자가 계정을 만들지 못하도록 Authentication 설정에서 신규 가입을 비활성화합니다.
-4. Authentication의 Email Templates에서 Magic Link 본문에 `{{ .Token }}`을 넣어 6자리 OTP 메일이 발송되도록 설정합니다.
-5. 사이트에서 관리자 이메일로 인증번호를 받아 로그인한 후 `로컬 데이터 올리기`를 눌러 기존 브라우저 기록을 공용 목록으로 이전합니다.
+4. Authentication의 URL Configuration에서 Site URL을 배포 주소로 설정하고 Redirect URLs에 로컬 및 배포 주소를 등록합니다.
+5. 사이트에서 관리자 이메일로 Magic Link를 받아 로그인한 후 `로컬 데이터 올리기`를 눌러 기존 브라우저 기록을 공용 목록으로 이전합니다.
 
 RLS 정책에 따라 익명 방문자는 `juno` 컬렉션을 읽을 수만 있고, 인증된 관리자만 갱신할 수 있습니다. Secret key와 `service_role` key는 브라우저나 GitHub Actions에 입력하지 않습니다.
 

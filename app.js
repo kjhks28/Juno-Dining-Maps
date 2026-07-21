@@ -4,7 +4,7 @@ import { preparePhotos } from "./js/images.js";
 import { createMapController } from "./js/map.js";
 import { getDistrict, getProvince } from "./js/regions.js";
 import { loadLocalRestaurants, loadRestaurants, normalizeRestaurant, saveRestaurants, validateImportedItem } from "./js/storage.js";
-import { getAdminSession, hasSupabaseConfig, requestAdminOtp, signOutAdmin, verifyAdminOtp } from "./js/supabase.js";
+import { getAdminSession, hasSupabaseConfig, requestAdminMagicLink, signOutAdmin } from "./js/supabase.js";
 
 let restaurants = await loadRestaurants();
 let isAdmin = Boolean(await getAdminSession().catch(error=>{console.error("관리자 세션을 확인하지 못했습니다.",error);return null;}));
@@ -16,7 +16,6 @@ let activeStatus = "all";
 let activeId = null;
 let editingId = null;
 let selectedAddressResult = null;
-let pendingOtpEmail = "";
 const mapController = await createMapController();
 
 const elements = {
@@ -114,9 +113,9 @@ document.querySelector("#clearSearch").addEventListener("click",()=>{elements.se
 document.querySelector("#searchAddressButton").addEventListener("click",searchAddress); elements.form.elements.namedItem("address").addEventListener("input",resetAddressSearch); elements.form.elements.namedItem("address").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();searchAddress();}});
 document.querySelector("#exportButton").addEventListener("click",exportBackup); document.querySelector("#importButton").addEventListener("click",()=>document.querySelector("#importInput").click()); document.querySelector("#importInput").addEventListener("change",importBackup);
 async function toggleAdmin(){ if(!hasSupabaseConfig()){window.alert("Supabase 설정이 없습니다.");return;} if(isAdmin){try{await signOutAdmin();isAdmin=false;render();}catch(error){console.error("로그아웃하지 못했습니다.",error);window.alert("로그아웃하지 못했어요.");}return;}document.querySelector("#authDialog").showModal(); }
-function resetOtpForm(){pendingOtpEmail="";const form=document.querySelector("#authForm");form.reset();form.elements.namedItem("email").readOnly=false;form.elements.namedItem("otp").required=false;document.querySelector("#otpField").hidden=true;document.querySelector("#authSubmitButton").textContent="인증번호 받기";document.querySelector("#authStatus").textContent="";}
-async function handleAdminLogin(event){event.preventDefault();const form=event.currentTarget;const status=document.querySelector("#authStatus");const submit=document.querySelector("#authSubmitButton");const data=new FormData(form);const email=String(data.get("email")).trim();submit.disabled=true;try{if(!pendingOtpEmail){status.textContent="인증번호를 보내는 중…";await requestAdminOtp(email);pendingOtpEmail=email;form.elements.namedItem("email").readOnly=true;document.querySelector("#otpField").hidden=false;document.querySelector("#otpField input").required=true;submit.textContent="확인하고 로그인";status.textContent="이메일로 받은 6자리 숫자를 입력해 주세요.";document.querySelector("#otpField input").focus();return;}const token=String(data.get("otp")).trim();if(!/^\d{6}$/.test(token)) throw new Error("6자리 인증번호를 입력해 주세요.");status.textContent="인증번호를 확인하는 중…";await verifyAdminOtp(pendingOtpEmail,token);isAdmin=true;resetOtpForm();document.querySelector("#authDialog").close();render();}catch(error){console.error("관리자 인증에 실패했습니다.",error);status.textContent=error instanceof Error&&error.message.includes("6자리")?error.message:"인증번호를 확인하거나 잠시 후 다시 시도해 주세요.";}finally{submit.disabled=false;}}
+function resetAuthForm(){document.querySelector("#authForm").reset();document.querySelector("#authStatus").textContent="";}
+async function handleAdminLogin(event){event.preventDefault();const form=event.currentTarget;const status=document.querySelector("#authStatus");const submit=document.querySelector("#authSubmitButton");const email=String(new FormData(form).get("email")).trim();submit.disabled=true;status.textContent="로그인 링크를 보내는 중…";try{await requestAdminMagicLink(email);status.textContent="이메일의 Sign in 링크를 눌러 주세요. 링크를 연 브라우저에서 자동 로그인됩니다.";}catch(error){console.error("관리자 로그인 링크를 보내지 못했습니다.",error);status.textContent="등록된 관리자 이메일인지 확인하거나 잠시 후 다시 시도해 주세요.";}finally{submit.disabled=false;}}
 function migrateLocalData(){if(!isAdmin) return;const local=loadLocalRestaurants();if(!window.confirm(`이 브라우저의 ${local.length}개 기록으로 공용 목록을 교체할까요?`)) return;restaurants=local;if(!saveRestaurants(restaurants)){window.alert("로컬 데이터를 올리지 못했습니다.");return;}render();window.alert("공용 목록에 업로드를 요청했습니다.");}
-document.querySelector("#authButton").addEventListener("click",toggleAdmin);document.querySelector("#authForm").addEventListener("submit",handleAdminLogin);document.querySelector("#closeAuthButton").addEventListener("click",()=>document.querySelector("#authDialog").close());document.querySelector("#authDialog").addEventListener("close",resetOtpForm);document.querySelector("#migrateLocalButton").addEventListener("click",migrateLocalData);
+document.querySelector("#authButton").addEventListener("click",toggleAdmin);document.querySelector("#authForm").addEventListener("submit",handleAdminLogin);document.querySelector("#closeAuthButton").addEventListener("click",()=>document.querySelector("#authDialog").close());document.querySelector("#authDialog").addEventListener("close",resetAuthForm);document.querySelector("#migrateLocalButton").addEventListener("click",migrateLocalData);
 document.querySelector("#tagOptions").replaceChildren(...TAG_OPTIONS.map(tag=>{const label=document.createElement("label");label.className="tag-option";const input=document.createElement("input");input.type="checkbox";input.name="tags";input.value=tag;label.append(input,document.createTextNode(tag));return label;}));
 render();
