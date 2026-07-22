@@ -14,15 +14,17 @@
   <header class="topbar">
     <a class="brand" href="#" aria-label="Juno 맛집 리스트 홈"><span class="brand-mark">J</span><span>Juno 맛집 리스트</span></a>
     <div class="header-actions">
-      <label class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="식당명, 메뉴, 지역으로 검색" aria-label="맛집 검색"><button type="button" id="clearSearch" aria-label="검색어 지우기" hidden>×</button></label>
+      <label class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="초성·여러 검색어도 가능" aria-label="맛집 검색"><button type="button" id="clearSearch" aria-label="검색어 지우기" hidden>×</button></label>
       <button class="auth-button" id="authButton">관리자 로그인</button>
       <button class="primary-button" id="openFormButton">＋ 맛집 기록하기</button>
     </div>
   </header>
 
+  <nav class="app-tabs" aria-label="주요 화면"><button type="button" class="active" data-app-tab="browse">맛집 지도</button><button type="button" data-app-tab="insights">컬렉션 · 통계 · 메추</button></nav>
+
   <nav class="mobile-view-toggle" aria-label="모바일 화면 전환"><button type="button" data-mobile-view="map" class="active">지도</button><button type="button" data-mobile-view="list">목록</button></nav>
 
-  <main class="app-shell">
+  <main class="app-shell" data-tab-panel="browse">
     <section class="map-panel">
       <div id="map" aria-label="맛집 지도"></div>
       <button class="locate-button" id="locateButton" title="내 위치로 이동">◎</button>
@@ -61,25 +63,38 @@
     </aside>
   </main>
 
+  <section class="insights-shell" id="insightsPanel" data-tab-panel="insights" hidden>
+    <div class="insights-head"><div><span class="eyebrow">MY FOOD ARCHIVE</span><h1>컬렉션과 맛집 통계</h1><p>저장한 카드에서 취향을 살펴보고 오늘의 메뉴도 골라보세요.</p></div></div>
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="insights-grid">
+      <article class="insight-card"><div class="section-head"><div><span class="eyebrow">CATEGORY</span><h2>카테고리 분포</h2></div></div><div class="category-chart" id="categoryChart"></div></article>
+      <article class="insight-card collection-section"><div class="section-head"><div><span class="eyebrow">COLLECTIONS</span><h2>나의 컬렉션</h2></div><small>맛집 수정에서 컬렉션을 지정할 수 있어요.</small></div><div class="collection-grid" id="collectionGrid"></div></article>
+      <article class="insight-card"><div class="section-head"><div><span class="eyebrow">REGION</span><h2>자주 찾은 지역</h2></div></div><div class="category-chart" id="regionChart"></div></article>
+      <article class="insight-card"><div class="section-head"><div><span class="eyebrow">MONTHLY</span><h2>월별 방문</h2></div></div><div class="category-chart" id="monthlyChart"></div></article>
+      <article class="insight-card recommendation-section"><div class="section-head"><div><span class="eyebrow">MENU PICK</span><h2>메추</h2></div><button type="button" class="secondary-button" id="restartRecommendation">다시 추천</button></div><p class="recommendation-progress" id="recommendationProgress"></p><h3 id="recommendationQuestion"></h3><div class="recommendation-options" id="recommendationOptions"></div><div class="recommendation-result" id="recommendationResult" hidden></div></article>
+    </div>
+  </section>
+
   <dialog id="restaurantDialog">
     <form id="restaurantForm" method="dialog">
       <div class="dialog-head"><div><span class="eyebrow" id="dialogEyebrow">NEW PLACE</span><h2 id="dialogTitle">맛집 기록하기</h2></div><button type="button" class="close-button" id="closeFormButton">×</button></div>
       <div class="form-grid">
         <label>목록 구분<select name="status" required><option value="visited">다녀온 맛집</option><option value="wishlist">가고 싶은 곳</option></select></label>
         <label>방문 날짜<input name="visitDate" type="date"></label>
-        <label class="wide">식당 이름<input name="name" required maxlength="40" placeholder="예: 오래된 짬뽕집"></label>
+        <label class="wide">식당 이름<input name="name" maxlength="40" placeholder="예: 오래된 짬뽕집"></label>
         <label class="wide address-field">상호명 또는 주소<div class="address-search-row"><input name="address" required maxlength="100" placeholder="식당 이름이나 도로명 주소를 입력해 주세요"><button type="button" id="searchAddressButton">네이버 검색</button></div><span class="address-search-status" id="addressSearchStatus"></span><div class="address-results" id="addressResults" hidden></div></label>
-        <label>지역<input name="region" required maxlength="20" placeholder="예: 서울 성동구"></label>
-        <label>카테고리<select name="category" required><option value="">선택</option><option>한식</option><option>중식</option><option>일식</option><option>양식</option><option>카페</option><option>분식</option><option>기타</option></select></label>
-        <label>세부 카테고리<input name="subcategory" required maxlength="30" placeholder="예: 간짜장"></label>
+        <label>지역<input name="region" maxlength="20" placeholder="예: 서울 성동구"></label>
+        <label>카테고리<select name="category"><option value="">선택</option><option>한식</option><option>중식</option><option>일식</option><option>양식</option><option>카페</option><option>분식</option><option>기타</option></select></label>
+        <label>세부 카테고리<input name="subcategory" maxlength="30" placeholder="예: 간짜장"></label>
         <label>평점 (10점 만점)<input name="rating" type="number" min="0" max="10" step="0.1" placeholder="가고 싶은 곳은 비워도 돼요"></label>
         <label>방문 횟수<input name="visitCount" type="number" min="0" max="999" step="1" value="1"></label>
         <label>재방문 의사<select name="revisit"><option value="yes">꼭 다시 갈래요</option><option value="maybe">고민 중이에요</option><option value="no">재방문은 안 할래요</option><option value="unknown">아직 모르겠어요</option></select></label>
         <fieldset class="wide tag-fieldset"><legend>태그 (복수 선택)</legend><div class="tag-options" id="tagOptions"></div></fieldset>
+        <label class="wide">컬렉션<input name="collections" maxlength="120" placeholder="예: 부모님과 갈 곳, 청주 맛집"><small>쉼표로 구분하면 여러 컬렉션에 넣을 수 있어요.</small></label>
         <label class="wide">메뉴별 평가<textarea name="menuReviews" maxlength="500" rows="3" placeholder="한 줄에 하나씩 입력해 주세요. 예:&#10;간짜장 9.4&#10;탕수육 8.8"></textarea></label>
         <label class="wide">사진 첨부 (최대 3장)<input name="photos" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple><small>각 5MB 이하 JPG, PNG, WebP · 수정할 때 비워두면 기존 사진이 유지됩니다.</small></label>
-        <label class="wide">한 줄 코멘트<input name="comment" required maxlength="60" placeholder="이 집을 한 문장으로 남겨보세요"></label>
-        <label class="wide">식당 설명<textarea name="description" required maxlength="300" rows="3" placeholder="메뉴, 분위기, 함께 간 사람 등 기억하고 싶은 내용을 적어주세요"></textarea></label>
+        <label class="wide">한 줄 코멘트<input name="comment" maxlength="60" placeholder="이 집을 한 문장으로 남겨보세요"></label>
+        <label class="wide">식당 설명<textarea name="description" maxlength="300" rows="3" placeholder="메뉴, 분위기, 함께 간 사람 등 기억하고 싶은 내용을 적어주세요"></textarea></label>
       </div>
       <p class="form-status" id="formStatus" role="status"></p>
       <div class="dialog-actions"><button type="button" class="secondary-button" id="cancelFormButton">취소</button><button type="submit" class="primary-button" id="submitFormButton">지도에 기록하기</button></div>

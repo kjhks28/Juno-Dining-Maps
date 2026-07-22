@@ -4,7 +4,8 @@ import { fetchSharedCollection, hasSupabaseConfig, updateSharedCollection } from
 
 export function normalizeRestaurant(item){
   const tags=Array.isArray(item.tags)?item.tags.filter(tag=>TAG_OPTIONS.includes(tag)):[];
-  return {...item,status:item.status==="wishlist"?"wishlist":"visited",visitDate:item.visitDate??"",visitCount:Number(item.visitCount??1),revisit:item.revisit??"unknown",menuReviews:item.menuReviews??"",tags:[...new Set(tags)],photos:Array.isArray(item.photos)?item.photos.filter(photo=>typeof photo==="string"&&/^data:image\/(jpeg|png|webp);base64,/.test(photo)):[]};
+  const collections=Array.isArray(item.collections)?item.collections.filter(name=>typeof name==="string"&&name.trim()).map(name=>name.trim()).slice(0,10):[];
+  return {...item,status:item.status==="wishlist"?"wishlist":"visited",visitDate:item.visitDate??"",visitCount:Number(item.visitCount??1),revisit:item.revisit??"unknown",menuReviews:item.menuReviews??"",tags:[...new Set(tags)],collections:[...new Set(collections)],photos:Array.isArray(item.photos)?item.photos.filter(photo=>typeof photo==="string"&&/^data:image\/(jpeg|png|webp);base64,/.test(photo)):[]};
 }
 export function loadLocalRestaurants(){
   try { const saved=localStorage.getItem(STORAGE_KEY); const parsed=saved?JSON.parse(saved):seedRestaurants; return Array.isArray(parsed)?parsed.map(normalizeRestaurant):seedRestaurants.map(normalizeRestaurant); }
