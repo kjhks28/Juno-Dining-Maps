@@ -1,4 +1,6 @@
 export const STORAGE_KEY = "hanip-map-restaurants-v1";
+export const COLLECTION_LIMIT = 30;
+export const COLLECTION_NAME_MAX_LENGTH = 30;
 export const CATEGORY_ICONS = { 한식:"한",중식:"중",일식:"일",양식:"양",카페:"☕",분식:"분",기타:"맛" };
 export const REVISIT_LABELS = { yes:"꼭 다시 갈래요",maybe:"재방문 고민 중",no:"재방문 안 함",unknown:"재방문 미정" };
 export const TAG_OPTIONS = ["주차 가능","웨이팅 있음","예약 가능","포장 가능","배달 가능","혼밥 가능","단체 가능","아이 동반","반려동물 동반","늦게까지"];

@@ -1,5 +1,3 @@
-const COLLECTION_SEPARATOR = /[,\n]/;
-
 function hasRating(item){ return item.rating!==null&&item.rating!==""&&Number.isFinite(Number(item.rating)); }
 function getMenuNames(item){
   const lines=String(item.menuReviews??"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
@@ -7,9 +5,6 @@ function getMenuNames(item){
   return [...new Set(menus.length?menus:[String(item.subcategory??"").trim()].filter(Boolean))];
 }
 
-export function parseCollections(value){
-  return [...new Set(String(value??"").split(COLLECTION_SEPARATOR).map(name=>name.trim()).filter(Boolean))].slice(0,10);
-}
 export function getStats(restaurants){
   const rated=restaurants.filter(hasRating);
   const categoryCounts=restaurants.reduce((counts,item)=>{const category=item.category||"기타";counts[category]=(counts[category]??0)+1;return counts;},{});
@@ -25,8 +20,8 @@ export function getStats(restaurants){
     monthlyCounts:Object.entries(monthlyCounts).sort((left,right)=>left[0].localeCompare(right[0])).slice(-6)
   };
 }
-export function getCollectionGroups(restaurants){
-  const groups=new Map();
+export function getCollectionGroups(restaurants,collectionNames=[]){
+  const groups=new Map(collectionNames.map(name=>[name,[]]));
   restaurants.forEach(item=>(item.collections??[]).forEach(name=>{if(!groups.has(name))groups.set(name,[]);groups.get(name).push(item);}));
   return [...groups.entries()].sort((left,right)=>left[0].localeCompare(right[0],"ko"));
 }
