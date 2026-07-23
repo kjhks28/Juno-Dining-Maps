@@ -5,7 +5,8 @@ import { fetchSharedCollection, hasSupabaseConfig, updateSharedCollection } from
 export function normalizeRestaurant(item){
   const tags=Array.isArray(item.tags)?item.tags.filter(tag=>TAG_OPTIONS.includes(tag)):[];
   const collections=Array.isArray(item.collections)?item.collections.filter(name=>typeof name==="string"&&name.trim()).map(name=>name.trim()).slice(0,10):[];
-  return {...item,status:item.status==="wishlist"?"wishlist":"visited",visitDate:item.visitDate??"",visitCount:Number(item.visitCount??1),revisit:item.revisit??"unknown",menuReviews:item.menuReviews??"",tags:[...new Set(tags)],collections:[...new Set(collections)],photos:Array.isArray(item.photos)?item.photos.filter(photo=>typeof photo==="string"&&/^data:image\/(jpeg|png|webp);base64,/.test(photo)):[]};
+  const lat=Number(item.lat); const lng=Number(item.lng);
+  return {...item,status:item.status==="wishlist"?"wishlist":"visited",visitDate:item.visitDate??"",visitCount:Number(item.visitCount??1),revisit:item.revisit??"unknown",menuReviews:item.menuReviews??"",tags:[...new Set(tags)],collections:[...new Set(collections)],lat:Number.isFinite(lat)?lat:null,lng:Number.isFinite(lng)?lng:null,photos:Array.isArray(item.photos)?item.photos.filter(photo=>typeof photo==="string"&&/^data:image\/(jpeg|png|webp);base64,/.test(photo)):[]};
 }
 function normalizeCollectionNames(names,restaurants=[]){
   const explicit=Array.isArray(names)?names:[];

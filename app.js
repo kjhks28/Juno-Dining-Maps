@@ -5,7 +5,7 @@ import { getCollectionGroups, getRecommendationChoices, getStats, recommendMenu 
 import { createMapController } from "./js/map.js";
 import { getDistrict, getProvince } from "./js/regions.js";
 import { matchesRestaurantSearch } from "./js/search.js";
-import { loadFoodMapData, saveFoodMapData } from "./js/storage.js";
+import { loadFoodMapData, saveFoodMapData, validateImportedItem } from "./js/storage.js";
 import { getAdminSession, hasSupabaseConfig, requestAdminMagicLink, searchNaverPlaces, signOutAdmin } from "./js/supabase.js";
 
 const initialFoodMapData = await loadFoodMapData();
@@ -68,7 +68,8 @@ function renderFilters(){
   elements.activeFilterSummary.replaceChildren(...selected.map(value=>{const span=document.createElement("span");span.textContent=value;return span;}));elements.activeFilterBar.hidden=selected.length===0;
 }
 function renderMarkers(items){
-  mapController.renderMarkers(items,{getIconContent:item=>`<div class="custom-marker"><span>${escapeText(CATEGORY_ICONS[item.category]||"맛")}</span></div>`,getPopupContent:item=>`<div class="naver-popup"><div class="popup-name">${escapeText(item.name)}</div><div class="popup-meta">${escapeText(item.subcategory)} · ${hasRating(item)?`${item.rating}/10`:"평점 미등록"}</div></div>`,onSelect:id=>selectRestaurant(id,false,true)});
+  const mappable=items.filter(item=>Number.isFinite(Number(item.lat))&&Number.isFinite(Number(item.lng)));
+  mapController.renderMarkers(mappable,{getIconContent:item=>`<div class="custom-marker"><span>${escapeText(CATEGORY_ICONS[item.category]||"맛")}</span></div>`,getPopupContent:item=>`<div class="naver-popup"><div class="popup-name">${escapeText(item.name)}</div><div class="popup-meta">${escapeText(item.subcategory)} · ${hasRating(item)?`${item.rating}/10`:"평점 미등록"}</div></div>`,onSelect:id=>selectRestaurant(id,false,true)});
 }
 function renderCards(items){
   elements.list.innerHTML=items.map(item=>{ const score=hasRating(item)?`${item.rating}<small>/10</small>`:"<small>평점 없음</small>"; const ratingClass=hasRating(item)&&Number(item.rating)>=8.5?" high":"";const photo=item.photos[0]?`<img class="card-photo" src="${item.photos[0]}" alt="">`:""; const menus=item.menuReviews?`<div class="menu-reviews">${escapeText(item.menuReviews).replace(/\n/g,"<br>")}</div>`:""; const tags=item.tags.length?`<div class="card-tags">${item.tags.map(tag=>`<span>#${escapeText(tag)}</span>`).join("")}</div>`:""; const collectionTags=(item.collections??[]).length?`<div class="card-collections">${item.collections.map(name=>`<span>▰ ${escapeText(name)}</span>`).join("")}</div>`:"";const selector=selectionMode&&isAdmin?`<label class="card-selector"><input type="checkbox" data-select-card="${escapeText(item.id)}" ${selectedRestaurantIds.has(item.id)?"checked":""}><span>선택</span></label>`:"";const picker=isAdmin&&collectionNames.length?`<details class="collection-picker"><summary>컬렉션 선택</summary><div>${collectionNames.map(name=>`<label><input type="checkbox" data-collection-toggle="${escapeText(item.id)}" data-collection-name="${escapeText(name)}" ${(item.collections??[]).includes(name)?"checked":""}>${escapeText(name)}</label>`).join("")}</div></details>`:""; const visit=item.status==="wishlist"?"가고 싶은 곳":`<span>${escapeText(item.visitDate||"날짜 미등록")}</span><span>${item.visitCount}회 방문</span>`; const revisit=item.status==="visited"?`<div class="revisit-label">${escapeText(REVISIT_LABELS[item.revisit]||REVISIT_LABELS.unknown)}</div>`:""; const visitLabel=item.status==="wishlist"?"✓ 방문 완료":"＋ 오늘 방문"; return `<article class="restaurant-card ${activeId===item.id?"active":""} ${selectedRestaurantIds.has(item.id)?"selected":""}" data-id="${escapeText(item.id)}">${selector}${photo}<div class="card-body"><div class="card-top"><span class="category-dot"></span><span class="card-category">${escapeText(item.category)} · ${escapeText(item.subcategory)}</span><span class="card-region">${escapeText(item.region)}</span></div><div class="status-label ${item.status}">${visit}</div><h3>${escapeText(item.name)}</h3><p>“${escapeText(item.comment)}”</p>${tags}${collectionTags}<span class="rating${ratingClass}">${score}</span><div class="card-detail"><p class="card-description">${escapeText(item.description)}</p><p class="card-address">${escapeText(item.address)}</p>${revisit}${menus}${picker}<div class="card-navigation"><button data-map="${escapeText(item.id)}">지도에서 보기</button></div><div class="card-actions"><button class="visit-button" data-visit="${escapeText(item.id)}">${visitLabel}</button><button class="edit-button" data-edit="${escapeText(item.id)}">수정</button><button class="delete-button" data-delete="${escapeText(item.id)}">기록 삭제</button></div></div></div></article>`; }).join("");
@@ -101,6 +102,7 @@ async function updateCardCollection(id,name,checked){
   if(!await persistFoodMap(nextRestaurants)){window.alert("컬렉션을 저장하지 못했습니다.");renderCards(getFilteredRestaurants());return;}renderCards(getFilteredRestaurants());showToast(checked?`${name} 컬렉션에 추가했습니다.`:`${name} 컬렉션에서 제외했습니다.`);
 }
 async function applyBulkCollection(){
+  if(!isAdmin) return;
   const name=elements.bulkCollectionSelect.value;if(!name){window.alert("배정할 컬렉션을 선택해 주세요.");return;}if(selectedRestaurantIds.size===0){window.alert("맛집 카드를 하나 이상 선택해 주세요.");return;}
   const nextRestaurants=restaurants.map(item=>selectedRestaurantIds.has(item.id)?{...item,collections:[...new Set([...(item.collections??[]),name])],updatedAt:new Date().toISOString()}:item);
   if(!await persistFoodMap(nextRestaurants)){window.alert("컬렉션을 일괄 저장하지 못했습니다.");return;}const count=selectedRestaurantIds.size;selectionMode=false;selectedRestaurantIds.clear();render();showToast(`${count}개 맛집을 ${name} 컬렉션에 넣었습니다.`);
@@ -109,6 +111,17 @@ async function createCollectionFolder(event){
   event.preventDefault();elements.collectionFormStatus.textContent="";if(!isAdmin){elements.collectionFormStatus.textContent="관리자 로그인 후 폴더를 만들 수 있습니다.";return;}
   const input=event.currentTarget.elements.namedItem("collectionName");const name=String(input.value).trim();if(!name){elements.collectionFormStatus.textContent="컬렉션 이름을 입력해 주세요.";return;}if(collectionNames.includes(name)){elements.collectionFormStatus.textContent="이미 있는 컬렉션 이름입니다.";return;}if(collectionNames.length>=COLLECTION_LIMIT){elements.collectionFormStatus.textContent=`컬렉션은 최대 ${COLLECTION_LIMIT}개까지 만들 수 있습니다.`;return;}
   if(!await persistFoodMap(restaurants,[...collectionNames,name])){elements.collectionFormStatus.textContent="컬렉션 폴더를 저장하지 못했습니다.";return;}event.currentTarget.reset();renderCollections();renderBulkControls();showToast(`${name} 컬렉션 폴더를 만들었습니다.`);
+}
+function exportBackup(){ if(!isAdmin) return;const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),restaurants,collections:collectionNames},null,2)],{type:"application/json"}); const link=document.createElement("a"); link.href=URL.createObjectURL(blob); link.download=`juno-food-map-${new Date().toISOString().slice(0,10)}.json`; link.click(); setTimeout(()=>URL.revokeObjectURL(link.href),1000); }
+async function importBackup(event){
+  const file=event.target.files[0]; event.target.value=""; if(!file) return; if(!isAdmin){window.alert("관리자 로그인 후 불러올 수 있습니다.");return;} if(file.size>20*1024*1024){window.alert("백업 파일은 20MB 이하만 불러올 수 있어요.");return;}
+  try {
+    const parsed=JSON.parse(await file.text()); const records=Array.isArray(parsed)?parsed:parsed.restaurants; const nextCollections=Array.isArray(parsed?.collections)?parsed.collections:collectionNames;
+    if(!Array.isArray(records)||!records.every(validateImportedItem)) throw new Error("형식 오류");
+    if(!window.confirm(`현재 공용 목록을 백업의 ${records.length}개 기록으로 교체할까요? 되돌릴 수 없습니다.`)) return;
+    if(!await persistFoodMap(records,nextCollections)) throw new Error("서버에 저장하지 못했습니다.");
+    activeStatus="all";activeProvince="전체";activeRegion="전체";activeCategory="전체";activeTag="전체";activeId=null;selectedRestaurantIds.clear();render();showToast("백업을 불러와 서버에 반영했습니다.");
+  } catch(error){ console.error("백업을 불러오지 못했습니다.",error); window.alert("올바른 백업 파일이 아니에요."); }
 }
 function renderStats(){
   const stats=getStats(restaurants);
@@ -209,6 +222,7 @@ document.querySelector("#toggleSelectionButton").addEventListener("click",toggle
 document.querySelector("#selectAllVisible").addEventListener("click",selectAllVisibleRestaurants);
 document.querySelector("#applyBulkCollection").addEventListener("click",applyBulkCollection);
 elements.collectionCreateForm.addEventListener("submit",createCollectionFolder);
+document.querySelector("#exportButton").addEventListener("click",exportBackup); document.querySelector("#importButton").addEventListener("click",()=>document.querySelector("#importInput").click()); document.querySelector("#importInput").addEventListener("change",importBackup);
 elements.collectionGrid.addEventListener("click",event=>{const button=event.target.closest("[data-collection-place]");if(button)openPlaceFromInsights(button.dataset.collectionPlace);});
 elements.recommendationResult.addEventListener("click",event=>{const button=event.target.closest("[data-recommended-place]");if(button)openPlaceFromInsights(button.dataset.recommendedPlace);});
 document.querySelector("#searchAddressButton").addEventListener("click",searchAddress); elements.form.elements.namedItem("address").addEventListener("input",resetAddressSearch); elements.form.elements.namedItem("address").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();searchAddress();}});

@@ -38,7 +38,7 @@ jobs:
           mkdir _site
           rsync -a --exclude '.git' --exclude '.github' --exclude 'supabase' --exclude 'server.mjs' --exclude 'CLAUDE.md' ./ _site/
           sed -i "s|href=\"styles.css\"|href=\"styles.css?v=$GITHUB_SHA\"|; s|href=\"auth.css\"|href=\"auth.css?v=$GITHUB_SHA\"|; s|src=\"app.js\"|src=\"app.js?v=$GITHUB_SHA\"|" _site/index.html
-          find _site -type f -name '*.js' -exec sed -i -E "s|(from[[:space:]]+[\"'][^\"']+\.js)([\"'])|\1?v=$GITHUB_SHA\2|g" {} +
+          find _site -type f -name '*.js' -exec sed -i -E "s|(from[[:space:]]+[\"'][^\"']+\.js)([\"'])|\1?v=$GITHUB_SHA\2|g; s|(import\([\"'][^\"']+\.js)([\"']\))|\1?v=$GITHUB_SHA\2|g" {} +
           printf 'export const NAVER_MAP_CLIENT_ID = "%s";\nexport const SUPABASE_URL = "%s";\nexport const SUPABASE_PUBLISHABLE_KEY = "%s";\n' "$NAVER_MAP_CLIENT_ID" "$SUPABASE_URL" "$SUPABASE_PUBLISHABLE_KEY" > _site/js/config.local.js
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v4

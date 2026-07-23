@@ -26,7 +26,7 @@ export async function createMapController(){
         maps.Event.addListener(marker,"click",()=>{openInfoWindow(record);onSelect(item.id);});
       });
     }
-    function focus(id,item){ const position=new maps.LatLng(item.lat,item.lng);map.setCenter(position);map.setZoom(16);const record=records.get(id);if(record) openInfoWindow(record); }
+    function focus(id,item){ if(!Number.isFinite(Number(item.lat))||!Number.isFinite(Number(item.lng))) return;const position=new maps.LatLng(item.lat,item.lng);map.setCenter(position);map.setZoom(16);const record=records.get(id);if(record) openInfoWindow(record); }
     function highlight(id,active=true){
       const record=records.get(id);
       if(!record) return;
