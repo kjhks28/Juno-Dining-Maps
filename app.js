@@ -5,12 +5,13 @@ import { getCollectionGroups, getRecommendationChoices, getStats, recommendMenu 
 import { createMapController } from "./js/map.js";
 import { getDistrict, getProvince } from "./js/regions.js";
 import { matchesRestaurantSearch } from "./js/search.js";
-import { loadFoodMapData, saveFoodMapData, validateImportedItem } from "./js/storage.js";
+import { loadFoodMapData, normalizeFoodMapData, saveFoodMapData, validateImportedData } from "./js/storage.js";
 import { getAdminSession, hasSupabaseConfig, requestAdminMagicLink, searchNaverPlaces, signOutAdmin } from "./js/supabase.js";
 
 const initialFoodMapData = await loadFoodMapData();
 let restaurants = initialFoodMapData.restaurants;
 let collectionNames = initialFoodMapData.collections;
+let dataSource = initialFoodMapData.source;
 let isAdmin = Boolean(await getAdminSession().catch(error=>{console.error("관리자 세션을 확인하지 못했습니다.",error);return null;}));
 let activeRegion = "전체";
 let activeProvince = "전체";
@@ -31,7 +32,7 @@ const elements = {
   provinces:document.querySelector("#provinceFilters"), regions:document.querySelector("#regionFilters"), categories:document.querySelector("#categoryFilters"), tags:document.querySelector("#tagFilters"), statusFilters:document.querySelector("#statusFilters"),
   search:document.querySelector("#searchInput"), sort:document.querySelector("#sortSelect"),
   dialog:document.querySelector("#restaurantDialog"), form:document.querySelector("#restaurantForm"), addressResults:document.querySelector("#addressResults"), addressStatus:document.querySelector("#addressSearchStatus"),
-  status:document.querySelector("#formStatus"), activeFilterBar:document.querySelector("#activeFilterBar"),activeFilterSummary:document.querySelector("#activeFilterSummary"),toast:document.querySelector("#toast"),
+  status:document.querySelector("#formStatus"), activeFilterBar:document.querySelector("#activeFilterBar"),activeFilterSummary:document.querySelector("#activeFilterSummary"),toast:document.querySelector("#toast"),dataStatusBanner:document.querySelector("#dataStatusBanner"),
   statGrid:document.querySelector("#statGrid"),categoryChart:document.querySelector("#categoryChart"),regionChart:document.querySelector("#regionChart"),monthlyChart:document.querySelector("#monthlyChart"),collectionGrid:document.querySelector("#collectionGrid"),collectionCreateForm:document.querySelector("#collectionCreateForm"),collectionFormStatus:document.querySelector("#collectionFormStatus"),
   bulkBar:document.querySelector("#bulkBar"),bulkCollectionSelect:document.querySelector("#bulkCollectionSelect"),selectedCount:document.querySelector("#selectedCount"),recommendationProgress:document.querySelector("#recommendationProgress"),recommendationQuestion:document.querySelector("#recommendationQuestion"),recommendationOptions:document.querySelector("#recommendationOptions"),recommendationResult:document.querySelector("#recommendationResult")
 };
@@ -39,12 +40,13 @@ let toastTimer=null;
 
 async function persistFoodMap(nextRestaurants=restaurants,nextCollections=collectionNames){
   if(!await saveFoodMapData({restaurants:nextRestaurants,collections:nextCollections})) return false;
-  restaurants=nextRestaurants;collectionNames=nextCollections;return true;
+  restaurants=nextRestaurants;collectionNames=nextCollections;dataSource=hasSupabaseConfig()?"remote":"local";renderDataStatus();return true;
 }
 
 function escapeText(value){ const node=document.createElement("span"); node.textContent=String(value); return node.innerHTML; }
 function hasRating(item){ return item.rating!==null&&item.rating!==""&&Number.isFinite(Number(item.rating)); }
 function showToast(message){clearTimeout(toastTimer);elements.toast.textContent=message;elements.toast.hidden=false;requestAnimationFrame(()=>elements.toast.classList.add("visible"));toastTimer=setTimeout(()=>{elements.toast.classList.remove("visible");setTimeout(()=>{elements.toast.hidden=true;},180);},2200);}
+function renderDataStatus(){elements.dataStatusBanner.hidden=dataSource!=="local-fallback";}
 function getFilteredRestaurants(){
   const query=elements.search.value.trim();
   const filtered=restaurants.filter(item=>(activeStatus==="all"||item.status===activeStatus)&&(activeProvince==="전체"||getProvince(item)===activeProvince)&&(activeRegion==="전체"||getDistrict(item)===activeRegion)&&(activeCategory==="전체"||item.category===activeCategory)&&(activeTag==="전체"||item.tags.includes(activeTag))&&matchesRestaurantSearch(item,query));
@@ -87,6 +89,7 @@ function render(){
   const query=elements.search.value.trim();
   const regionLabel=activeRegion!=="전체"?activeRegion:activeProvince!=="전체"?activeProvince:"전체 지역";
   document.querySelector("#mapCount").textContent=items.length; document.querySelector("#totalBadge").textContent=`${restaurants.length}곳`; document.querySelector("#resultText").textContent=query?`‘${query}’ 검색 결과 · ${items.length}곳`:`${regionLabel} · ${items.length}곳`; document.querySelector("#clearSearch").hidden=!query;
+  renderDataStatus();
 }
 function renderBulkControls(){
   const button=document.querySelector("#toggleSelectionButton");button.textContent=selectionMode?"선택 취소":"일괄 선택";elements.bulkBar.hidden=!selectionMode;
@@ -117,9 +120,10 @@ async function importBackup(event){
   const file=event.target.files[0]; event.target.value=""; if(!file) return; if(!isAdmin){window.alert("관리자 로그인 후 불러올 수 있습니다.");return;} if(file.size>20*1024*1024){window.alert("백업 파일은 20MB 이하만 불러올 수 있어요.");return;}
   try {
     const parsed=JSON.parse(await file.text()); const records=Array.isArray(parsed)?parsed:parsed.restaurants; const nextCollections=Array.isArray(parsed?.collections)?parsed.collections:collectionNames;
-    if(!Array.isArray(records)||!records.every(validateImportedItem)) throw new Error("형식 오류");
+    if(!validateImportedData(records,nextCollections)) throw new Error("형식 오류");
     if(!window.confirm(`현재 공용 목록을 백업의 ${records.length}개 기록으로 교체할까요? 되돌릴 수 없습니다.`)) return;
-    if(!await persistFoodMap(records,nextCollections)) throw new Error("서버에 저장하지 못했습니다.");
+    const normalizedBackup=normalizeFoodMapData({restaurants:records,collections:nextCollections});
+    if(!await persistFoodMap(normalizedBackup.restaurants,normalizedBackup.collections)) throw new Error("서버에 저장하지 못했습니다.");
     activeStatus="all";activeProvince="전체";activeRegion="전체";activeCategory="전체";activeTag="전체";activeId=null;selectedRestaurantIds.clear();render();showToast("백업을 불러와 서버에 반영했습니다.");
   } catch(error){ console.error("백업을 불러오지 못했습니다.",error); window.alert("올바른 백업 파일이 아니에요."); }
 }
@@ -230,5 +234,6 @@ async function toggleAdmin(){ if(!hasSupabaseConfig()){window.alert("Supabase �
 function resetAuthForm(){document.querySelector("#authForm").reset();document.querySelector("#authStatus").textContent="";}
 async function handleAdminLogin(event){event.preventDefault();const form=event.currentTarget;const status=document.querySelector("#authStatus");const submit=document.querySelector("#authSubmitButton");const email=String(new FormData(form).get("email")).trim();submit.disabled=true;status.textContent="로그인 링크를 보내는 중…";try{await requestAdminMagicLink(email);status.textContent="이메일의 Sign in 링크를 눌러 주세요. 링크를 연 브라우저에서 자동 로그인됩니다.";}catch(error){console.error("관리자 로그인 링크를 보내지 못했습니다.",error);status.textContent="등록된 관리자 이메일인지 확인하거나 잠시 후 다시 시도해 주세요.";}finally{submit.disabled=false;}}
 document.querySelector("#authButton").addEventListener("click",toggleAdmin);document.querySelector("#authForm").addEventListener("submit",handleAdminLogin);document.querySelector("#closeAuthButton").addEventListener("click",()=>document.querySelector("#authDialog").close());document.querySelector("#authDialog").addEventListener("close",resetAuthForm);
+document.querySelector("#retryDataButton").addEventListener("click",()=>window.location.reload());
 document.querySelector("#tagOptions").replaceChildren(...TAG_OPTIONS.map(tag=>{const label=document.createElement("label");label.className="tag-option";const input=document.createElement("input");input.type="checkbox";input.name="tags";input.value=tag;label.append(input,document.createTextNode(tag));return label;}));
 render();
