@@ -1,4 +1,4 @@
-import { CATEGORY_ICONS, COLLECTION_LIMIT, REVISIT_LABELS, TAG_OPTIONS } from "./js/constants.js";
+import { CATEGORY_COLORS, CATEGORY_ICONS, COLLECTION_LIMIT, REVISIT_LABELS, TAG_OPTIONS } from "./js/constants.js";
 import { geocodeAddress, searchNaverAddresses } from "./js/geocoding.js";
 import { preparePhotos } from "./js/images.js";
 import { getCollectionGroups, getRecommendationChoices, getStats, recommendMenu } from "./js/insights.js";
@@ -37,6 +37,7 @@ const elements = {
   bulkBar:document.querySelector("#bulkBar"),bulkCollectionSelect:document.querySelector("#bulkCollectionSelect"),selectedCount:document.querySelector("#selectedCount"),recommendationProgress:document.querySelector("#recommendationProgress"),recommendationQuestion:document.querySelector("#recommendationQuestion"),recommendationOptions:document.querySelector("#recommendationOptions"),recommendationResult:document.querySelector("#recommendationResult")
 };
 let toastTimer=null;
+const DEFAULT_CATEGORY_COLOR="#8a6752";
 
 async function persistFoodMap(nextRestaurants=restaurants,nextCollections=collectionNames){
   if(!await saveFoodMapData({restaurants:nextRestaurants,collections:nextCollections})) return false;
@@ -44,6 +45,7 @@ async function persistFoodMap(nextRestaurants=restaurants,nextCollections=collec
 }
 
 function escapeText(value){ const node=document.createElement("span"); node.textContent=String(value); return node.innerHTML; }
+function getCategoryColor(category){ return CATEGORY_COLORS[category]??DEFAULT_CATEGORY_COLOR; }
 function hasRating(item){ return item.rating!==null&&item.rating!==""&&Number.isFinite(Number(item.rating)); }
 function showToast(message){clearTimeout(toastTimer);elements.toast.textContent=message;elements.toast.hidden=false;requestAnimationFrame(()=>elements.toast.classList.add("visible"));toastTimer=setTimeout(()=>{elements.toast.classList.remove("visible");setTimeout(()=>{elements.toast.hidden=true;},180);},2200);}
 function renderDataStatus(){elements.dataStatusBanner.hidden=dataSource!=="local-fallback";}
@@ -71,7 +73,7 @@ function renderFilters(){
 }
 function renderMarkers(items){
   const mappable=items.filter(item=>Number.isFinite(Number(item.lat))&&Number.isFinite(Number(item.lng)));
-  mapController.renderMarkers(mappable,{getIconContent:item=>`<div class="custom-marker"><span>${escapeText(CATEGORY_ICONS[item.category]||"맛")}</span></div>`,getPopupContent:item=>`<div class="naver-popup"><div class="popup-name">${escapeText(item.name)}</div><div class="popup-meta">${escapeText(item.subcategory)} · ${hasRating(item)?`${item.rating}/10`:"평점 미등록"}</div></div>`,onSelect:id=>selectRestaurant(id,false,true)});
+  mapController.renderMarkers(mappable,{getIconContent:item=>`<div class="custom-marker" style="--category-color:${getCategoryColor(item.category)}"><span>${escapeText(CATEGORY_ICONS[item.category]||"맛")}</span></div>`,getPopupContent:item=>`<div class="naver-popup"><div class="popup-name">${escapeText(item.name)}</div><div class="popup-meta">${escapeText(item.subcategory)} · ${hasRating(item)?`${item.rating}/10`:"평점 미등록"}</div></div>`,onSelect:id=>selectRestaurant(id,false,true)});
 }
 function renderCards(items){
   elements.list.innerHTML=items.map(item=>{ const score=hasRating(item)?`${item.rating}<small>/10</small>`:"<small>평점 없음</small>"; const ratingClass=hasRating(item)&&Number(item.rating)>=8.5?" high":"";const photo=item.photos[0]?`<img class="card-photo" src="${item.photos[0]}" alt="">`:""; const menus=item.menuReviews?`<div class="menu-reviews">${escapeText(item.menuReviews).replace(/\n/g,"<br>")}</div>`:""; const tags=item.tags.length?`<div class="card-tags">${item.tags.map(tag=>`<span>#${escapeText(tag)}</span>`).join("")}</div>`:""; const collectionTags=(item.collections??[]).length?`<div class="card-collections">${item.collections.map(name=>`<span>▰ ${escapeText(name)}</span>`).join("")}</div>`:"";const selector=selectionMode&&isAdmin?`<label class="card-selector"><input type="checkbox" data-select-card="${escapeText(item.id)}" ${selectedRestaurantIds.has(item.id)?"checked":""}><span>선택</span></label>`:"";const picker=isAdmin&&collectionNames.length?`<details class="collection-picker"><summary>컬렉션 선택</summary><div>${collectionNames.map(name=>`<label><input type="checkbox" data-collection-toggle="${escapeText(item.id)}" data-collection-name="${escapeText(name)}" ${(item.collections??[]).includes(name)?"checked":""}>${escapeText(name)}</label>`).join("")}</div></details>`:""; const visit=item.status==="wishlist"?"가고 싶은 곳":`<span>${escapeText(item.visitDate||"날짜 미등록")}</span><span>${item.visitCount}회 방문</span>`; const revisit=item.status==="visited"?`<div class="revisit-label">${escapeText(REVISIT_LABELS[item.revisit]||REVISIT_LABELS.unknown)}</div>`:""; const visitLabel=item.status==="wishlist"?"✓ 방문 완료":"＋ 오늘 방문"; return `<article class="restaurant-card ${activeId===item.id?"active":""} ${selectedRestaurantIds.has(item.id)?"selected":""}" data-id="${escapeText(item.id)}">${selector}${photo}<div class="card-body"><div class="card-top"><span class="category-dot"></span><span class="card-category">${escapeText(item.category)} · ${escapeText(item.subcategory)}</span><span class="card-region">${escapeText(item.region)}</span></div><div class="status-label ${item.status}">${visit}</div><h3>${escapeText(item.name)}</h3><p>“${escapeText(item.comment)}”</p>${tags}${collectionTags}<span class="rating${ratingClass}">${score}</span><div class="card-detail"><p class="card-description">${escapeText(item.description)}</p><p class="card-address">${escapeText(item.address)}</p>${revisit}${menus}${picker}<div class="card-navigation"><button data-map="${escapeText(item.id)}">지도에서 보기</button></div><div class="card-actions"><button class="visit-button" data-visit="${escapeText(item.id)}">${visitLabel}</button><button class="edit-button" data-edit="${escapeText(item.id)}">수정</button><button class="delete-button" data-delete="${escapeText(item.id)}">기록 삭제</button></div></div></div></article>`; }).join("");
@@ -131,11 +133,11 @@ function renderStats(){
   const stats=getStats(restaurants);
   const cards=[["전체 맛집",stats.total],["다녀온 곳",stats.visited],["가고 싶은 곳",stats.wishlist],["평균 평점",stats.averageRating]];
   elements.statGrid.innerHTML=cards.map(([label,value])=>`<article><span>${label}</span><strong>${value}</strong></article>`).join("");
-  renderBarChart(elements.categoryChart,stats.categoryCounts,"카테고리 통계를 만들 카드가 아직 없어요.");
+  renderBarChart(elements.categoryChart,stats.categoryCounts,"카테고리 통계를 만들 카드가 아직 없어요.",getCategoryColor);
   renderBarChart(elements.regionChart,stats.regionCounts,"지역 정보가 있는 카드가 아직 없어요.");
   renderBarChart(elements.monthlyChart,stats.monthlyCounts,"방문 날짜가 있는 카드가 아직 없어요.");
 }
-function renderBarChart(container,entries,emptyMessage){const maximum=Math.max(...entries.map(([,count])=>count),1);container.innerHTML=entries.length?entries.map(([label,count])=>`<div class="chart-row"><span title="${escapeText(label)}">${escapeText(label)}</span><div><i style="width:${Math.round(count/maximum*100)}%"></i></div><strong>${count}</strong></div>`).join(""):`<p class="panel-empty">${emptyMessage}</p>`;}
+function renderBarChart(container,entries,emptyMessage,getColor=()=>null){const maximum=Math.max(...entries.map(([,count])=>count),1);container.innerHTML=entries.length?entries.map(([label,count])=>{const color=getColor(label);const style=[`width:${Math.round(count/maximum*100)}%`,color?`--chart-color:${color}`:""].filter(Boolean).join(";");return `<div class="chart-row"><span title="${escapeText(label)}">${escapeText(label)}</span><div><i style="${style}"></i></div><strong>${count}</strong></div>`;}).join(""):`<p class="panel-empty">${emptyMessage}</p>`;}
 function renderCollections(){
   const groups=getCollectionGroups(restaurants,collectionNames);
   elements.collectionGrid.innerHTML=groups.length?groups.map(([name,items])=>`<section class="collection-card"><div><h3>▰ ${escapeText(name)}</h3><span>${items.length}곳</span></div>${items.length?`<ul>${items.map(item=>`<li><button type="button" data-collection-place="${escapeText(item.id)}"><strong>${escapeText(item.name)}</strong><small>${escapeText(item.subcategory||item.category||"메뉴 미등록")}</small></button></li>`).join("")}</ul>`:`<p>아직 담긴 맛집이 없는 폴더예요.</p>`}</section>`).join(""):`<p class="panel-empty">아직 컬렉션 폴더가 없어요. 위에서 첫 폴더를 만들어보세요.</p>`;

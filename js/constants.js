@@ -5,6 +5,15 @@ export const RESTAURANT_BACKUP_LIMIT = 5000;
 export const LATITUDE_RANGE = Object.freeze({ min:-90,max:90 });
 export const LONGITUDE_RANGE = Object.freeze({ min:-180,max:180 });
 export const CATEGORY_ICONS = { 한식:"한",중식:"중",일식:"일",양식:"양",카페:"☕",분식:"분",기타:"맛" };
+export const CATEGORY_COLORS = Object.freeze({
+  한식:"#d95f45",
+  중식:"#a94f55",
+  일식:"#c58a36",
+  양식:"#66846a",
+  카페:"#8a6752",
+  분식:"#c57078",
+  기타:"#6f7880"
+});
 export const REVISIT_LABELS = { yes:"꼭 다시 갈래요",maybe:"재방문 고민 중",no:"재방문 안 함",unknown:"재방문 미정" };
 export const TAG_OPTIONS = ["주차 가능","웨이팅 있음","예약 가능","포장 가능","배달 가능","혼밥 가능","단체 가능","아이 동반","반려동물 동반","늦게까지"];
 export const KOREAN_PROVINCES = {
