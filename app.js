@@ -40,8 +40,9 @@ let toastTimer=null;
 const DEFAULT_CATEGORY_COLOR="#8a6752";
 
 async function persistFoodMap(nextRestaurants=restaurants,nextCollections=collectionNames){
-  if(!await saveFoodMapData({restaurants:nextRestaurants,collections:nextCollections})) return false;
-  restaurants=nextRestaurants;collectionNames=nextCollections;dataSource=hasSupabaseConfig()?"remote":"local";renderDataStatus();return true;
+  const savedData=await saveFoodMapData({restaurants:nextRestaurants,collections:nextCollections});
+  if(!savedData) return false;
+  restaurants=savedData.restaurants;collectionNames=savedData.collections;dataSource=hasSupabaseConfig()?"remote":"local";renderDataStatus();return true;
 }
 
 function escapeText(value){ const node=document.createElement("span"); node.textContent=String(value); return node.innerHTML; }
@@ -114,8 +115,12 @@ async function applyBulkCollection(){
 }
 async function createCollectionFolder(event){
   event.preventDefault();elements.collectionFormStatus.textContent="";if(!isAdmin){elements.collectionFormStatus.textContent="관리자 로그인 후 폴더를 만들 수 있습니다.";return;}
-  const input=event.currentTarget.elements.namedItem("collectionName");const name=String(input.value).trim();if(!name){elements.collectionFormStatus.textContent="컬렉션 이름을 입력해 주세요.";return;}if(collectionNames.includes(name)){elements.collectionFormStatus.textContent="이미 있는 컬렉션 이름입니다.";return;}if(collectionNames.length>=COLLECTION_LIMIT){elements.collectionFormStatus.textContent=`컬렉션은 최대 ${COLLECTION_LIMIT}개까지 만들 수 있습니다.`;return;}
-  if(!await persistFoodMap(restaurants,[...collectionNames,name])){elements.collectionFormStatus.textContent="컬렉션 폴더를 저장하지 못했습니다.";return;}event.currentTarget.reset();renderCollections();renderBulkControls();showToast(`${name} 컬렉션 폴더를 만들었습니다.`);
+  const form=event.currentTarget;const input=form.elements.namedItem("collectionName");const submit=form.querySelector("[type=submit]");const name=String(input.value).trim();if(!name){elements.collectionFormStatus.textContent="컬렉션 이름을 입력해 주세요.";return;}if(collectionNames.includes(name)){elements.collectionFormStatus.textContent="이미 있는 컬렉션 이름입니다. 아래 폴더 목록에서 확인해 주세요.";renderCollections();return;}if(collectionNames.length>=COLLECTION_LIMIT){elements.collectionFormStatus.textContent=`컬렉션은 최대 ${COLLECTION_LIMIT}개까지 만들 수 있습니다.`;return;}
+  submit.disabled=true;elements.collectionFormStatus.textContent="폴더를 저장하는 중…";
+  try {
+    if(!await persistFoodMap(restaurants,[...collectionNames,name])){elements.collectionFormStatus.textContent="컬렉션 폴더를 저장하지 못했습니다.";return;}
+    form.reset();renderCollections();renderBulkControls();elements.collectionFormStatus.textContent=`‘${name}’ 폴더를 만들었습니다.`;showToast(`${name} 컬렉션 폴더를 만들었습니다.`);
+  } finally {submit.disabled=false;}
 }
 function exportBackup(){ if(!isAdmin) return;const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),restaurants,collections:collectionNames},null,2)],{type:"application/json"}); const link=document.createElement("a"); link.href=URL.createObjectURL(blob); link.download=`juno-food-map-${new Date().toISOString().slice(0,10)}.json`; link.click(); setTimeout(()=>URL.revokeObjectURL(link.href),1000); }
 async function importBackup(event){

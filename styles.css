@@ -31,3 +31,5 @@
 /* 카테고리 색상은 차트와 지도에서 동일하게 사용한다. */
 .custom-marker{background:var(--category-color,var(--accent))}
 .chart-row i{background:var(--chart-color,var(--accent))}
+.collection-create-form button:disabled{opacity:.58;cursor:wait}
+.collection-form-status:not(:empty){font-weight:700}

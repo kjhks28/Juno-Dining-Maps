@@ -41,8 +41,8 @@ export async function saveFoodMapData(data){
     if(hasSupabaseConfig()) await updateSharedCollection(normalized);
     try { localStorage.setItem(STORAGE_KEY,serialized); }
     catch(error){ console.warn("로컬 캐시를 저장하지 못했지만 서버 저장은 완료됐습니다.",error); }
-    return true;
-  } catch(error){ console.error("맛집을 서버에 저장하지 못했습니다.",error); return false; }
+    return normalized;
+  } catch(error){ console.error("맛집을 서버에 저장하지 못했습니다.",error); return null; }
 }
 export function validateImportedItem(item){
   if(!item||typeof item!=="object"||Array.isArray(item)) return false;
