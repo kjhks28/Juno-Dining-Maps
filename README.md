@@ -59,24 +59,33 @@ npx supabase functions deploy naver-place-search
 my-food-map/
 ├─ index.html                  화면 마크업
 ├─ styles.css                 화면 스타일
+├─ auth.css                   관리자 모드·인증 다이얼로그 스타일
 ├─ app.js                     UI 상태와 이벤트 조정
 ├─ server.mjs                 로컬 정적 서버
+├─ package.json               `npm test` 스크립트 (의존성 없음)
 ├─ js/
 │  ├─ config.js               로컬 런타임 설정 로더
-│  ├─ config.local.example.js Client ID 설정 예제
+│  ├─ config.local.example.js Client ID·Supabase 설정 예제
 │  ├─ constants.js            공통 상수와 한국 행정구역
 │  ├─ geocoding.js            네이버 우선 주소→좌표 변환
 │  ├─ images.js               사진 검증·압축
+│  ├─ insights.js             통계·컬렉션 그룹핑·메뉴 추천 로직
 │  ├─ map.js                  네이버 지도·마커·정보창 제어
 │  ├─ naver-sdk.js            네이버 Maps SDK 단일 로더
 │  ├─ regions.js              시·도와 세부 지역 분류
+│  ├─ search.js               초성·오타 허용 검색
 │  ├─ seed-data.js            최초 샘플 데이터
-│  └─ storage.js              localStorage와 데이터 검증
+│  ├─ storage.js              데이터 정규화·검증, 로컬/Supabase 저장 분기
+│  └─ supabase.js             Supabase 클라이언트·인증·공용 데이터 CRUD
 ├─ supabase/
 │  ├─ config.toml             Edge Function 인증 설정
 │  ├─ setup.sql               공유 데이터 테이블과 RLS 설정
 │  └─ functions/naver-place-search/index.ts
 │                              네이버 상호명 검색 프록시
+├─ tests/                     `node --test` 회귀 테스트 (배포 전 자동 실행)
+├─ .github/workflows/
+│  ├─ pages.yml               GitHub Pages 배포 (테스트 → secrets 주입 → 캐시버스팅)
+│  └─ keep-supabase-awake.yml 무료 플랜 자동 일시정지 방지용 매일 핑
 └─ .gitignore                 비밀·로컬 설정 제외
 ```
 

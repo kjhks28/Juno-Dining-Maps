@@ -8,8 +8,9 @@ compliance: not_required
 맛집 기록 웹앱. 지도(Naver Maps), 사진, 평점, 방문 기록, 시·도/세부지역/카테고리/태그/컬렉션 폴더 필터, 통계·메뉴 추천을 제공. 데이터는 **Supabase의 공용 테이블 한 행**에 저장되어 기기 간 공유되고, 편집은 관리자 로그인(매직링크) 후에만 가능. 방문자는 로그인 없이 지도·목록·통계를 볼 수 있음(읽기 전용).
 
 ## 기술 스택
-- 순수 HTML/CSS/JS (ES Modules). **빌드 도구, 프레임워크, npm 의존성 없음** — 새 기능을 추가할 때도 이 원칙을 유지할 것 (React/Vite/번들러 도입 금지, 필요 없음).
+- 순수 HTML/CSS/JS (ES Modules). **빌드 도구, 프레임워크, npm 의존성 없음** — 새 기능을 추가할 때도 이 원칙을 유지할 것 (React/Vite/번들러 도입 금지, 필요 없음). `package.json`은 `npm test`(Node 내장 `node --test`) 스크립트 하나만 담고 있고 의존성은 없음.
 - 로컬 서버: `server.mjs` (Node 내장 `http` 모듈만 사용, 정적 파일 서빙)
+- 테스트: `tests/*.test.mjs` (Node 내장 테스트 러너). `npm test`로 실행, `pages.yml` 배포 전에도 자동 실행되어 실패하면 배포가 막힘. 새 검증 로직(`storage.js`의 정규화/검증 함수, `search.js`/`insights.js`의 순수 함수)을 고치면 테스트도 같이 갱신할 것.
 - 지도/지오코딩: Naver Maps JavaScript API v3 (`ncpKeyId` 방식, `oapi.map.naver.com`), 실패 시 OpenStreetMap Nominatim으로 폴백
 - 데이터/인증: Supabase (Postgres + Auth + Edge Functions). CDN에서 `@supabase/supabase-js` ESM을 동적 import (`js/supabase.js`).
 - 배포: GitHub Actions → GitHub Pages (`.github/workflows/pages.yml`). Naver/Supabase 값은 저장소 Secrets에서 빌드 시점에 `js/config.local.js`로 생성됨 — **저장소에는 절대 커밋하지 않음**.
@@ -26,6 +27,7 @@ node server.mjs
 - **Secret 값은 반드시 개행/공백 없이 저장할 것** — 값에 개행이 섞이면 생성된 JS 문자열 리터럴이 깨져 import가 통째로 실패함 (2026-07-21 실제 발생, `NAVER_MAP_CLIENT_ID` secret에 trailing newline). 워크플로 자체도 `tr -d '\n\r'`로 방어하지만, 애초에 secret 입력 시 주의.
 - GitHub Pages CDN 캐시(`max-age=600`) 대응으로 배포 시 `index.html`의 `styles.css`/`auth.css`/`app.js`와 모든 `.js` 파일의 정적/동적 import 경로에 `?v=$GITHUB_SHA`를 sed로 붙임. 새 정적 asset을 추가하면 이 sed 대상에도 포함되는지 확인할 것.
 - Supabase Edge Function(`supabase/functions/naver-place-search`)의 시크릿(`NAVER_SEARCH_CLIENT_ID`/`SECRET`)은 **GitHub Secrets가 아니라 Supabase 프로젝트 자체의 함수 시크릿**으로 별도 관리됨 — 헷갈리지 말 것.
+- `.github/workflows/keep-supabase-awake.yml`이 매일 한 번 `food_map_collections`를 조회해 Supabase 무료 플랜의 "7일 미사용 자동 일시정지"를 방지함 (2026-07-23, 실제로 프로젝트가 일시정지되어 사이트가 조용히 로컬 폴백 데이터를 보여주는 사고 이후 추가). 이 워크플로가 실패하기 시작하면 프로젝트가 일시정지됐을 가능성을 의심할 것 — Supabase 대시보드에서 "Resume project"로 무료 복구 가능(데이터 보존됨).
 
 ## 데이터 모델 / 백엔드
 - 모든 맛집·컬렉션은 `public.food_map_collections` 테이블의 단일 행(`id='juno'`)에 JSON(`restaurants`, 컬렉션 이름은 앱단에서 파생)으로 저장 (`supabase/setup.sql`).
