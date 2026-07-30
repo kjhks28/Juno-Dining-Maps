@@ -51,7 +51,7 @@ export function validateImportedItem(item){
   if(typeof item.address!=="string"||!item.address.trim()||item.address.length>100) return false;
   if(normalizeCoordinate(item.lat,LATITUDE_RANGE)===null||normalizeCoordinate(item.lng,LONGITUDE_RANGE)===null) return false;
   if(item.status!==undefined&&!["visited","wishlist"].includes(item.status)) return false;
-  if(item.rating!==undefined&&item.rating!==null&&item.rating!==""&&(!Number.isFinite(Number(item.rating))||Number(item.rating)<0||Number(item.rating)>10)) return false;
+  if(item.rating!==undefined&&item.rating!==null&&item.rating!==""&&(!Number.isFinite(Number(item.rating))||Number(item.rating)<5||Number(item.rating)>10)) return false;
   if(item.tags!==undefined&&!Array.isArray(item.tags)) return false;
   if(item.collections!==undefined&&!Array.isArray(item.collections)) return false;
   if(item.photos!==undefined&&!Array.isArray(item.photos)) return false;

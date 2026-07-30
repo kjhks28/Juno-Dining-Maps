@@ -32,6 +32,10 @@ test("백업 항목은 필수 문자열과 유효한 좌표를 요구한다",()=
   assert.equal(validateImportedItem({...validRestaurant,lat:null}),false);
   assert.equal(validateImportedItem({...validRestaurant,lng:181}),false);
   assert.equal(validateImportedItem({...validRestaurant,status:"unknown"}),false);
+  assert.equal(validateImportedItem({...validRestaurant,rating:4.9}),false);
+  assert.equal(validateImportedItem({...validRestaurant,rating:5}),true);
+  assert.equal(validateImportedItem({...validRestaurant,rating:10}),true);
+  assert.equal(validateImportedItem({...validRestaurant,rating:10.1}),false);
 });
 
 test("백업 전체에서 중복 ID와 잘못된 컬렉션을 거부한다",()=>{

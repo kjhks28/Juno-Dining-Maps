@@ -12,7 +12,7 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="#" aria-label="Juno 맛집 리스트 홈"><span class="brand-mark">J</span><span>Juno 맛집 리스트</span></a>
+    <div class="brand-group"><a class="brand" href="#" aria-label="Juno 맛집 리스트 홈"><span class="brand-mark">J</span><span>Juno 맛집 리스트</span></a><button type="button" class="notice-button" id="openNoticeButton"><span aria-hidden="true">!</span> 공지사항</button></div>
     <nav class="app-tabs" aria-label="주요 화면"><button type="button" class="active" data-app-tab="browse">맛집 지도</button><button type="button" data-app-tab="insights">통계 &amp; 메추</button></nav>
     <div class="header-actions">
       <label class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="초성·여러 검색어도 가능" aria-label="맛집 검색"><button type="button" id="clearSearch" aria-label="검색어 지우기" hidden>×</button></label>
@@ -89,7 +89,7 @@
         <label>지역<input name="region" maxlength="20" placeholder="예: 서울 성동구"></label>
         <label>카테고리<select name="category"><option value="">선택</option><option>한식</option><option>중식</option><option>일식</option><option>양식</option><option>카페</option><option>분식</option><option>기타</option></select></label>
         <label>세부 카테고리<input name="subcategory" maxlength="30" placeholder="예: 간짜장"></label>
-        <label>평점 (10점 만점)<input name="rating" type="number" min="0" max="10" step="0.1" placeholder="가고 싶은 곳은 비워도 돼요"></label>
+        <label>평점 (5~10점)<input name="rating" type="number" min="5" max="10" step="0.1" placeholder="가고 싶은 곳은 비워도 돼요"></label>
         <label>방문 횟수<input name="visitCount" type="number" min="0" max="999" step="1" value="1"></label>
         <label>재방문 의사<select name="revisit"><option value="yes">꼭 다시 갈래요</option><option value="maybe">고민 중이에요</option><option value="no">재방문은 안 할래요</option><option value="unknown">아직 모르겠어요</option></select></label>
         <fieldset class="wide tag-fieldset"><legend>태그 (복수 선택)</legend><div class="tag-options" id="tagOptions"></div></fieldset>
@@ -101,6 +101,24 @@
       <p class="form-status" id="formStatus" role="status"></p>
       <div class="dialog-actions"><button type="button" class="secondary-button" id="cancelFormButton">취소</button><button type="submit" class="primary-button" id="submitFormButton">지도에 기록하기</button></div>
     </form>
+  </dialog>
+
+  <dialog id="noticeDialog" class="notice-dialog" aria-labelledby="noticeTitle">
+    <div class="notice-content">
+      <div class="dialog-head"><div><span class="eyebrow">NOTICE</span><h2 id="noticeTitle">주인장의 평점 안내</h2></div><button type="button" class="close-button" id="closeNoticeButton" aria-label="공지사항 닫기">×</button></div>
+      <div class="notice-intro">
+        <p>해당 평점은 주인장의 지극히 주관적인 미각이 담겨있습니다만, 보통 사람들과 크게 다르지 않은 입맛, 그래도 맛있는 건 기가 막히게 찾는 혀로 손해 볼 일은 없을 것입니다.</p>
+        <p>일단 여기 올라오는 가게들은 다 맛있어서 올린 것입니다. 하지만 또 나름의 기준은 넣어야 하기에 평점은 5점부터 시작합니다.</p>
+      </div>
+      <ol class="rating-guide" start="5">
+        <li><strong>5점</strong><span>그냥 맛있게 먹었음</span></li>
+        <li><strong>6점</strong><span>음~ 맛있다</span></li>
+        <li><strong>7점</strong><span>오.. 잘하는데?</span></li>
+        <li><strong>8점</strong><span>와.. 어케한겨 <small>식당만의 시그니처가 있음</small></span></li>
+        <li><strong>9점</strong><span>너무 맛있어서 연구하고 주변 사람들을 데려가서 토론하고 싶음</span></li>
+        <li><strong>10점</strong><span>객관성 떨어짐. 그냥 주인장 추억 보정 및 특별한 사연 있는 집</span></li>
+      </ol>
+    </div>
   </dialog>
 
   <dialog id="authDialog" class="auth-dialog"><form id="authForm" method="dialog"><div class="dialog-head"><div><span class="eyebrow">ADMIN</span><h2>관리자 로그인</h2></div><button type="button" class="close-button" id="closeAuthButton">×</button></div><label>관리자 이메일<input name="email" type="email" required autocomplete="email"></label><p class="form-status" id="authStatus" role="status"></p><button type="submit" class="primary-button" id="authSubmitButton">로그인 링크 받기</button></form></dialog>
